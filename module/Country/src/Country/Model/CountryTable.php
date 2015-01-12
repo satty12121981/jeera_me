@@ -27,5 +27,15 @@ class CountryTable extends AbstractTableGateway
         $resultSet->initialize($statement->execute());
         return $resultSet->toArray();      
     } 
-	
+	public function getCountry($country_id)
+    {
+		$select = new Select(); 
+		$select->from($this->table);
+		$select->where("country_id",$country_id);
+		$statement = $this->adapter->createStatement();
+        $select->prepareStatement($this->adapter, $statement);        
+        $resultSet = new ResultSet();
+        $resultSet->initialize($statement->execute());
+        return $resultSet->current();    
+    }
 }

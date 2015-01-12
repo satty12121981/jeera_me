@@ -31,7 +31,16 @@ return array(
                             ),
                         ),                        
                     ),
-					 
+					'countrylist' => array(
+                        'type' => 'Literal',
+                        'options' => array(
+                            'route' => '/countrylist',
+                            'defaults' => array(
+                                'controller' => 'country',
+                                'action' => 'countrylist',
+                            ),
+                        ),                        
+                    ), 
                 ),
             ),
         ),

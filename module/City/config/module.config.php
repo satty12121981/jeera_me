@@ -45,7 +45,18 @@ return array(
 							),
                         ),					 
                     ),
-					
+					'citylist'=>array(
+                        'type' => 'segment',
+                        'options' => array(
+                            'route' => '/citylist',
+                             
+							'defaults' => array(
+								'__NAMESPACE__' => 'City\Controller',
+								'controller' => 'city',
+								'action'     => 'citylist',
+							),
+                        ),					 
+                    ),					
                 ),
             ),
         ),

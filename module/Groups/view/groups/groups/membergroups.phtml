@@ -229,8 +229,10 @@
                 </div>
                 <div class="clear"></div>
                 <div class="popup_interest-lists" ng-show="showgrouptags"  >
-					<a class="interest_add" remove-on-click href="javascript:void(0);"    ng-repeat="items in grouptags |filter:grouptag_search" ng-click="addToSelectedGroupIntrest(items.category_id,items.tag_id,items.tag_title);remove()">{{items.tag_title}}<span></span></a>	
-				
+					<a class="interest_add" remove-on-click href="javascript:void(0);"    ng-repeat="items in filtered = (grouptags | filter:grouptag_search) | limitTo:group_tag_limit" ng-click="addToSelectedGroupIntrest(items.category_id,items.tag_id,items.tag_title);remove()">{{items.tag_title}}<span></span></a>	
+                    <button ng-show="showgroupmoretags" ng-click="increaseLimit(group_tag_limit)" ng-hide="filtered.length <= group_tag_limit">
+                              More...
+                    </button>
 				</div>
                 <div class="create_group-label">Chosen Group Interests</div>
                 <div class="selected_interest">
@@ -568,7 +570,8 @@
 	});
 
      groupapp.controller('groupController',function($scope, $http){
-
+            $scope.group_tag_limit = 25;
+            $scope.group_tag_inc_limit = 25;
             $scope.Searchcompany = [];
             $scope.CompanyContactAutocompleteBind = function () {
                 $("#usersearch").catcomplete({
@@ -637,6 +640,7 @@
 			$scope.groupintrest.switch = 2; 
 			$scope.grouptags = {};
 			$scope.showgrouptags = 0;
+            $scope.showgroupmoretags = 0;
 			$scope.gruopdrpClass = "dropdown_close";
 			$scope.gruopisVisible = 0;			 
 			$scope.groupselectedIndex = 0;	
@@ -721,7 +725,8 @@
 					$scope.groupselectedIndex = selected;
 					$scope.gruopdrpClass = "dropdown_close";
 					$scope.selectedGroupCategory = category;
-					$scope.showgrouptags = 0;	
+					$scope.showgrouptags = 0;
+                    $scope.showgroupmoretags = 0;	
 					$scope.getgroupTags(category);					 
 				}else{ 
 					$scope.gruopisVisible = 1;
@@ -736,11 +741,18 @@
 					if(data.tags.length>0){
 					$scope.grouptags = data.tags; 	
 					$scope.showgrouptags = 1;
+                    $scope.group_tag_limit = 25; 
 					}else{$scope.showgrouptags = 0;}
+                    if(data.tags.length > $scope.group_tag_limit){
+                    $scope.showgroupmoretags = 1;
+                    }else{$scope.showgroupmoretags = 0;}
 				}).error(function(data, status, headers, config) {
 				 alert("Error occured. Please try again");
 				});
 			};
+            $scope.increaseLimit = function (group_tag_limit){
+                $scope.group_tag_limit = group_tag_limit+$scope.group_tag_inc_limit;  
+            };
 			$scope.objSelectedGroupTags = new Array();
 			$scope.objSelectedGroupCategory = new Array()
 			$scope.addToSelectedGroupIntrest = function(category,tag_id,tag_name){  

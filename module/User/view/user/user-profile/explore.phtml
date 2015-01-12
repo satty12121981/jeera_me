@@ -236,8 +236,8 @@
                 </div>
                 <div class="clear"></div>
                 <div class="popup_interest-lists" ng-show="showgrouptags"  >
-					<a class="interest_add" remove-on-click href="javascript:void(0);"    ng-repeat="items in grouptags |filter:grouptag_search |limitTo:group_tag_limit" ng-click="addToSelectedGroupIntrest(items.category_id,items.tag_id,items.tag_title);remove()">{{items.tag_title}}<span></span></a>	
-                        <button ng-show="showgroupmoretags" ng-click="increaseLimit(group_tag_limit)"   ng-disabled="group_tag_limit >= grouptags.length">
+					<a class="interest_add" remove-on-click href="javascript:void(0);"    ng-repeat="items in filtered = (grouptags | filter:grouptag_search) | limitTo:group_tag_limit" ng-click="addToSelectedGroupIntrest(items.category_id,items.tag_id,items.tag_title);remove()">{{items.tag_title}}<span></span></a>	
+                        <button ng-show="showgroupmoretags" ng-click="increaseLimit(group_tag_limit)"   ng-hide="filtered.length <= group_tag_limit">
                               More...
                         </button>
 				</div>
@@ -360,11 +360,11 @@
 						</div>
 						<div class="clear"></div>
 						<div class="popup_interest-lists" ng-show="showtags"  >
-							<a class="interest_add" remove-on-click href="javascript:void(0);"    ng-repeat="items in tags |filter:tag_search |limitTo:tag_limit" ng-click="addToSelected(items.category_id,items.tag_id,items.tag_title);remove()">{{items.tag_title}}<span></span></a>	
-     						<button ng-show="showmoretags" ng-click="tag_limit = tag_limit + tag_inc_limit" ng-init="tag_limit = tag_inc_limit" ng-disabled="tag_limit >= tags.length">
+							<a class="interest_add" remove-on-click href="javascript:void(0);"    ng-repeat="items in filtered = (tags | filter:tag_search) | limitTo:tag_limit" ng-click="addToSelected(items.category_id,items.tag_id,items.tag_title);remove()">{{items.tag_title}}<span></span></a>	
+     						<button ng-show="showmoretags" ng-click="tag_limit = tag_limit + tag_inc_limit" ng-init="tag_limit = tag_inc_limit" ng-hide="filtered.length <= tag_limit">
                               More...
                             </button>
-                           
+                            
 						</div>
 						<h3>Your Interests</h3>
 						<div class="selected_interest">
@@ -554,10 +554,10 @@ var componentForm = {
 		$scope.shownPlace = 'All';
 		$scope.showSearch = 0;
 		$scope.tag_search = '';
-        $scope.tag_limit = 5;
-        $scope.tag_inc_limit = 5;
-        $scope.group_tag_limit = 5;
-        $scope.group_tag_inc_limit = 5;
+        $scope.tag_limit = 25;
+        $scope.tag_inc_limit = 25;
+        $scope.group_tag_limit = 25;
+        $scope.group_tag_inc_limit = 25;
 			$scope.intrest= <?php echo json_encode($user_tags); ?>;
 			$scope.categoryImagePath=(image_paths.tag_category!='')?baseurl+"/public/"+image_paths.tag_category:baseurl+'/public/images/';
 			$scope.objSelectedCategory =  new Array();
@@ -578,7 +578,7 @@ var componentForm = {
 			}
 			$scope.loadPopup = function(){	
 				$scope.intrest.switch = 2;
-                $scope.tag_limit = 5;
+                $scope.tag_limit = 25;
 				url = baseurl+'/tag/getAllActiveCategories';
 				$http({
 				  method: 'POST',
@@ -631,7 +631,7 @@ var componentForm = {
 					$scope.selectedCategory = category;
 					$scope.showtags = 0;
                     $scope.showmoretags = 0;
-                    $scope.tag_limit = 5;
+                    $scope.tag_limit = 25;
 					$scope.getTags(category);					 
 				}else{ 
 					$scope.isVisible = 1;
@@ -655,6 +655,7 @@ var componentForm = {
 				});
 			};
 			$scope.searchTag = function(){
+                alert('s');
 				$scope.getTags($scope.selectedCategory);
 			}
 			
@@ -758,7 +759,7 @@ var componentForm = {
 			$scope.grouptags = {};
 			$scope.showgrouptags = 0;	
             $scope.showgroupmoretags = 0;
-			$scope.grouptag_search	='';
+			$scope.grouptag_search = '';
 			$scope.enablelist = 0;
 			$scope.onlist = 0;
 			$scope.question = [];
@@ -871,7 +872,7 @@ var componentForm = {
 					if(data.tags.length>0){
 					$scope.grouptags = data.tags; 	
 					$scope.showgrouptags = 1;
-                    $scope.group_tag_limit = 5; 
+                    $scope.group_tag_limit = 25; 
 					}else{$scope.showgrouptags = 0;}
                     if(data.tags.length > $scope.group_tag_limit){
                         $scope.showgroupmoretags = 1;
@@ -924,9 +925,7 @@ var componentForm = {
 				}
 			};
 			$scope.friends = [];
-			
 			$scope.objSelectedUsers = [];
-			 
 			
 			$scope.LoadThirdFrom = function(){
 				if($scope.objSelectedGroupTags.length>0){
@@ -964,7 +963,6 @@ var componentForm = {
 			}
 			$scope.hideList = function(){  
 				if(!$scope.onlist)$scope.enablelist = 0;
-				 
 			}
 			$scope.OnListHover = function() { 
 				$scope.onlist = 1;
@@ -975,13 +973,13 @@ var componentForm = {
 				$scope.enablelist = 0;
 			}
 			$scope.range = function(n) {
-			return new Array(n);
-           }
-		   $scope.hideContainer=function(){
-			$scope.addmoreQuestion = 0;
-			  $scope.qn = 3;
-		   }
-           $scope.selectType = function(id){
+			    return new Array(n);
+            }
+		    $scope.hideContainer=function(){
+			    $scope.addmoreQuestion = 0;
+			    $scope.qn = 3;
+		    }
+            $scope.selectType = function(id){
                 $scope.selectedIndexQue[id] = id;
                 $scope.selected_type[id]= $scope.question_type[id];
 
@@ -991,11 +989,11 @@ var componentForm = {
                     $scope.option2[id]      = '';
                     $scope.option3[id]      = '';
                 }
-           }
-		   $scope.goback = function(level){	
+            }
+		    $scope.goback = function(level){	
 			$scope.selectedFrom = level;
-		   }
-		   $scope.SaveGroup = function(){
+		    }
+		    $scope.SaveGroup = function(){
 			$scope.QuestionDetails = [];
                var index = 0;
                var flag  = 0;

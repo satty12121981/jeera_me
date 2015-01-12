@@ -98,7 +98,7 @@
         </div>
         
     </div><!-- Banner Close --->
-   <div   class="group_banner group_banner_edit" ng-if="imageEdit ==1" style="height:auto" > 
+   <div class="group_banner group_banner_edit" ng-if="imageEdit ==1" style="height:auto" > 
 		<div class="image-editor">
 			<input type="file" class="cropit-image-input" style="display:none">
 			<div class="cropit-image-preview"></div>
@@ -145,8 +145,8 @@
 						</div>
 						<div class="clear"></div>
 						<div class="popup_interest-lists" ng-show="showtags"  >
-							<a class="interest_add" remove-on-click href="javascript:void(0);"    ng-repeat="items in tags |filter:tag_search |limitTo:tag_limit" ng-click="addToSelected(items.category_id,items.tag_id,items.tag_title);remove()">{{items.tag_title}}<span></span></a>
-                            <button ng-show="showmoretags" ng-click="tag_limit = tag_limit + tag_inc_limit" ng-init="tag_limit = tag_inc_limit" ng-disabled="tag_limit >= tags.length">
+							<a class="interest_add" remove-on-click href="javascript:void(0);"    ng-repeat="items in filtered = (tags | filter:tag_search) | limitTo:tag_limit" ng-click="addToSelected(items.category_id,items.tag_id,items.tag_title);remove()">{{items.tag_title}}<span></span></a>
+                            <button ng-show="showmoretags" ng-click="tag_limit = tag_limit + tag_inc_limit" ng-init="tag_limit = tag_inc_limit" ng-hide="filtered.length <= tag_limit">
                                 More...
                             </button>
  						
@@ -747,7 +747,7 @@
          
 	 
      groupapp.controller('groupController',function($scope, $http){
-        $scope.tag_limit = 5;
+        $scope.tag_limit = 25;
         $scope.tag_inc_limit = 25;
 		$scope.group = <?php echo json_encode($group_info); ?>;
         $scope.group_picture = '<?php echo $this->basePath(); ?>/public/images/group-img_def.jpg';
@@ -788,7 +788,7 @@
 		}
 		$scope.loadPopup = function(){ 
 				$scope.intrest.switch = 2;
-                $scope.tag_limit = 5;
+                $scope.tag_limit = 25;
 				url = baseurl+'/tag/getAllActiveCategories';
 				$http({
 				  method: 'POST',
@@ -838,7 +838,7 @@
 					$scope.selectedCategory = category;
 					$scope.showtags = 0;
                     $scope.showmoretags = 0;
-                    $scope.tag_limit = 5;
+                    $scope.tag_limit = 25;
 					$scope.getTags(category);					 
 				}else{ 
 					$scope.isVisible = 1;
@@ -854,8 +854,8 @@
 					$scope.tags = data.tags; 	
 					$scope.showtags = 1;
 					}else{$scope.showtags = 0;}
-                        if(data.tags.length > $scope.tag_limit) {
-                            $scope.showmoretags=1; } else { $scope.showmoretags =0; }
+                    if(data.tags.length > $scope.tag_limit) {
+                    $scope.showmoretags=1; } else { $scope.showmoretags =0; }
 				}).error(function(data, status, headers, config) {
 				 alert("Error occured. Please try again");
 				});

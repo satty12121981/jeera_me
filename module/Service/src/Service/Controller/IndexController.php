@@ -57,21 +57,17 @@ class IndexController extends AbstractActionController
 	protected $RecoveryemailsTable;
 	protected $WEB_STAMPTIME;
 	
-	public function init()
-    {
+	public function init(){
         $this->flagSuccess = "Success";
 		$this->flagError = "Failure";
 	}
 	
-	public function registerAction()
-    {
+	public function registerAction(){
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
 			$str = $this->getRequest()->getContent();
-			/* echo"<pre>"; print_r($postedValues);
-			echo "name: "; print_r(urldecode($str));
-			die(' here'); */
+
 			if ((!isset($postedValues['name'])) || ($postedValues['name'] == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Name is required.";
@@ -158,10 +154,72 @@ class IndexController extends AbstractActionController
 			exit;
 		}
     }
-	
-	
-	public function loginAction()
-    { 
+
+    public function fbregisterAction(){
+		$request = $this->getRequest();
+		if($this->getRequest()->getMethod() == 'POST') {
+			$postedValues = $this->getRequest()->getPost();
+			$str = $this->getRequest()->getContent();
+			
+			if ( !empty($postedValues['email']) )
+				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
+			else if( !empty($postedValues['fbid']) )
+				$user_details = $this->getUserTable()->getUserByFbid($postedValues['fbid']);
+			
+			$bcrypt = new Bcrypt();
+
+			if ($postedValues['fbid'])
+				$data['user_fbid'] = strip_tags($postedValues['fbid']);
+			
+			if ($postedValues['email']) {
+				$email = strip_tags($postedValues['email']);
+				$email = trim($email);
+				$data['user_email'] = $email;
+			}
+			if ($postedValues['name']) {
+				$name = strip_tags($postedValues['name']);
+				$name = trim($name);
+				$data['user_profile_name'] = $this->make_url_friendly($postedValues['name']);
+				$data['user_given_name'] = $name;
+			}
+			
+			$data['user_status'] = "live";
+			$user = new User();
+			$user->exchangeArray($data);
+			$insertedUserId = $this->getUserTable()->saveUser($user);
+			$user_id = $insertedUserId;
+			$uniqueToken = $user_id."#".uniqid();
+			$encodedUniqToken = base64_encode($uniqueToken);
+			
+			$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
+			$this->getUserTable()->updateUser($data,$user_details->user_id);
+			if($insertedUserId) {
+				$profile_data['user_profile_user_id'] = $insertedUserId;
+				$profile_data['user_profile_status'] = "available";
+				$userProfile = new UserProfile();
+				$userProfile->exchangeArray($profile_data);
+				$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
+				//$this->sendVerificationEmail($user_verification_key,$insertedUserId,$data['user_email']);
+				$dataArr[0]['flag'] = "Success";
+				$dataArr[0]['message'] = "Registration successful.";
+				$dataArr[0]['accesstoken'] = $encodedUniqToken;
+				echo json_encode($dataArr);
+				exit;
+			} else {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Some Error Occurred. Please Try Again.";
+				echo json_encode($dataArr);
+				exit;
+			} 
+		} else {
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request Not Authorised.";
+			echo json_encode($dataArr);
+			exit;
+		}
+    }
+		
+	public function loginAction(){ 
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
@@ -237,9 +295,8 @@ class IndexController extends AbstractActionController
 			exit;
 		}
 	}
-	
-	
-	public function loginaccessAction () {
+		
+	public function loginaccessAction(){
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
@@ -307,7 +364,8 @@ class IndexController extends AbstractActionController
 			exit;
 		}
 	}
-	public function rec_create_secretcode($email) {
+
+	public function rec_create_secretcode($email){
         $user_details = $this->getUserTable()->getUserFromEmail($email);
 		// echo '<pre>'; print_r($user_details); die;
         if ($user_details->set_timestamp != '') {
@@ -331,23 +389,15 @@ class IndexController extends AbstractActionController
         return $set_secretcode; //return secret code                           
     }
 	
-	/**
-     * THis function is used for create time stamp.
-     * @since 1.0
-     * @param: none,
-     * @return: return current timestamp
-     * @auther Asheesh Sharma
-     */
-    public function rec_create_timestamp() {
+    public function rec_create_timestamp(){
         $currentTime = date('Y-m-d H:i');
         $currentDate = strtotime($currentTime);
         $futureDate = $currentDate + $this->WEB_STAMPTIME;
         $set_timestamp = date("Y-m-d H:i", $futureDate);
         return $set_timestamp;
     }
-	
-	
-	public function logoutAction() {
+		
+	public function logoutAction(){
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
@@ -524,9 +574,7 @@ class IndexController extends AbstractActionController
 
 	}
 	
-	public function make_url_friendly($string)
-
-	{
+	public function make_url_friendly($string){
 
 		$string = trim($string); 
 
@@ -559,6 +607,7 @@ class IndexController extends AbstractActionController
 		return $string; 
 
 	}
+
 	public function checkProfileNameExist($string){
 
 		if($this->getUserTable()->checkProfileNameExist($string)){
@@ -572,6 +621,7 @@ class IndexController extends AbstractActionController
 		}
 
 	}
+
 	public function checkUserActive($email){
 
 		$user_data= $this->getUserTable()->getUserFromEmail($email);
@@ -579,6 +629,7 @@ class IndexController extends AbstractActionController
 		if($user_data->user_status =='live'){return true;}else{return false;}
 
 	}
+
 	public function getUserTable(){
 
 		$sm = $this->getServiceLocator();
@@ -602,6 +653,5 @@ class IndexController extends AbstractActionController
 		return $this->RecoveryemailsTable =(!$this->RecoveryemailsTable)?$sm->get('User\Model\RecoveryemailsTable'):$this->RecoveryemailsTable;
 
 	}
-
 	
 }

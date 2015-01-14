@@ -160,57 +160,78 @@ class IndexController extends AbstractActionController
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
 			$str = $this->getRequest()->getContent();
-			
-			if ( !empty($postedValues['email']) )
+			$user_details = array();
+		
+			if ( !empty($postedValues['email']) ) {
 				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
-			else if( !empty($postedValues['fbid']) )
+			}
+			else if( !empty($postedValues['fbid']) ) {
 				$user_details = $this->getUserTable()->getUserByFbid($postedValues['fbid']);
-			
-			$bcrypt = new Bcrypt();
-
-			if ($postedValues['fbid'])
-				$data['user_fbid'] = strip_tags($postedValues['fbid']);
-			
-			if ($postedValues['email']) {
-				$email = strip_tags($postedValues['email']);
-				$email = trim($email);
-				$data['user_email'] = $email;
 			}
-			if ($postedValues['name']) {
-				$name = strip_tags($postedValues['name']);
-				$name = trim($name);
-				$data['user_profile_name'] = $this->make_url_friendly($postedValues['name']);
-				$data['user_given_name'] = $name;
-			}
-			
-			$data['user_status'] = "live";
-			$user = new User();
-			$user->exchangeArray($data);
-			$insertedUserId = $this->getUserTable()->saveUser($user);
-			$user_id = $insertedUserId;
-			$uniqueToken = $user_id."#".uniqid();
-			$encodedUniqToken = base64_encode($uniqueToken);
-			
-			$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
-			$this->getUserTable()->updateUser($data,$user_details->user_id);
-			if($insertedUserId) {
-				$profile_data['user_profile_user_id'] = $insertedUserId;
-				$profile_data['user_profile_status'] = "available";
-				$userProfile = new UserProfile();
-				$userProfile->exchangeArray($profile_data);
-				$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
-				//$this->sendVerificationEmail($user_verification_key,$insertedUserId,$data['user_email']);
+		
+			if ( isset($user_details) && !empty($user_details->user_id) ) {
+				$uniqueToken = $user_details->user_id."#".uniqid();
+				$encodedUniqToken = base64_encode($uniqueToken);
 				$dataArr[0]['flag'] = "Success";
 				$dataArr[0]['message'] = "Registration successful.";
 				$dataArr[0]['accesstoken'] = $encodedUniqToken;
 				echo json_encode($dataArr);
 				exit;
 			} else {
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Some Error Occurred. Please Try Again.";
-				echo json_encode($dataArr);
-				exit;
-			} 
+
+				if ($postedValues['fbid']) {
+					$bcrypt = new Bcrypt();
+
+					$data['user_fbid'] = strip_tags($postedValues['fbid']);
+					
+					if ($postedValues['email']) {
+						$email = strip_tags($postedValues['email']);
+						$email = trim($email);
+						$data['user_email'] = $email;
+					}
+					if ($postedValues['name']) {
+						$name = strip_tags($postedValues['name']);
+						$name = trim($name);
+						$data['user_given_name'] = $name;
+					}
+					$data['user_profile_name'] = $this->make_url_friendly($postedValues['name']);
+					$data['user_status'] = "live";
+					$data['user_register_type'] = "facebook";
+				
+					$user = new User();
+					$user->exchangeArray($data);
+					$insertedUserId = $this->getUserTable()->saveUser($user);
+					$user_id = $insertedUserId;
+					$uniqueToken = $user_id."#".uniqid();
+					$encodedUniqToken = base64_encode($uniqueToken);
+					
+					$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
+					$this->getUserTable()->updateUser($data,$user_details->user_id);
+					if($insertedUserId) {
+						$profile_data['user_profile_user_id'] = $insertedUserId;
+						$profile_data['user_profile_status'] = "available";
+						$userProfile = new UserProfile();
+						$userProfile->exchangeArray($profile_data);
+						$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
+						//$this->sendVerificationEmail($user_verification_key,$insertedUserId,$data['user_email']);
+						$dataArr[0]['flag'] = "Success";
+						$dataArr[0]['message'] = "Registration successful.";
+						$dataArr[0]['accesstoken'] = $encodedUniqToken;
+						echo json_encode($dataArr);
+						exit;
+					} else {
+						$dataArr[0]['flag'] = "Failure";
+						$dataArr[0]['message'] = "Some Error Occurred. Please Try Again.";
+						echo json_encode($dataArr);
+						exit;
+					}
+				} else {
+					$dataArr[0]['flag'] = "Failure";
+					$dataArr[0]['message'] = "No Input parameters.";
+					echo json_encode($dataArr);
+					exit;
+				}
+			}
 		} else {
 			$dataArr[0]['flag'] = "Failure";
 			$dataArr[0]['message'] = "Request Not Authorised.";

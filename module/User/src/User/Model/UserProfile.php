@@ -14,8 +14,7 @@ class UserProfile
 	public $user_profile_profession_at;
 	public $user_profile_user_id;
 	public $user_profile_city_id;
-	public $user_profile_emailme_id;
-	public $user_profile_notifyme_id;
+	
 	public $user_profile_country_id;
 	public $user_address;
 	public $user_profile_current_location;
@@ -42,8 +41,6 @@ class UserProfile
 		$this->user_profile_city_id  = (isset($data['user_profile_city_id'])) ? $data['user_profile_city_id'] : null;		 
 		$this->user_profile_country_id  = (isset($data['user_profile_country_id'])) ? $data['user_profile_country_id'] : null;
 		$this->user_address  = (isset($data['user_address'])) ? $data['user_address'] : null;
-		$this->user_profile_emailme_id  = (isset($data['user_profile_emailme_id'])) ? $data['user_profile_emailme_id'] : null;
-		$this->user_profile_notifyme_id  = (isset($data['user_profile_notifyme_id'])) ? $data['user_profile_notifyme_id'] : null;
 		$this->user_profile_current_location  = (isset($data['user_profile_current_location'])) ? $data['user_profile_current_location'] : null;
 		$this->user_profile_phone  = (isset($data['user_profile_phone'])) ? $data['user_profile_phone'] : null;
 		$this->user_profile_added_timestamp  = (isset($data['user_profile_added_timestamp'])) ? $data['user_profile_added_timestamp'] : null;

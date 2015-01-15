@@ -41,8 +41,8 @@
                     	<a href="<?php echo $this->basePath(); ?>/groups/{{items.group_seo_title}}"> <span>{{items.group_title}}</span> </a>
                     	<br />
                     	<span>Type: {{items.group_type}}</span>
-                    	<span><i class="white-location"></i>{{items.city}}, {{items.country_code}}</span>
-                    	<span><i class="white-location"></i>Members: {{items.member_count}}</span>
+                    	<span ng-if="(items.city)"><i class="white-location"></i><i class="group-location"></i>{{items.city}}, {{items.country_code}}</span>
+                    	<span ng-if="(items.member_count)"><i class="white-location"></i>Members: {{items.member_count}}</span>
                     </div>                 
                 </div>
                 </span>

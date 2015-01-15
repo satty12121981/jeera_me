@@ -346,8 +346,15 @@ class GroupsTable extends AbstractTableGateway
 	}
 	public function searchGroup($search,$limit,$offset){
 		$select = new Select;
+		$sub_select = new Select;
+		
+		$sub_select->from('y2m_group')
+				   ->columns(array(new Expression('COUNT(y2m_group.group_id) as member_count'),"group_id"))
+				   ->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_group.group_id = y2m_user_group.user_group_group_id',array());
+		$sub_select->group('y2m_group.group_id');
 		$select->from('y2m_group')
 				 ->columns(array('group_id','group_title','group_seo_title','group_description','group_added_timestamp','group_type'))
+				 ->join(array('temp_member' => $sub_select), 'temp_member.group_id = y2m_group.group_id',array('member_count'),'left')
 				 ->join("y2m_country","y2m_country.country_id = y2m_group.group_country_id",array("country_code_googlemap","country_title","country_code"),'left')
 			     ->join("y2m_city","y2m_city.city_id = y2m_group.group_city_id",array("city"=>"name"),'left')
 			     ->join("y2m_group_photo","y2m_group_photo.group_photo_group_id = y2m_group.group_id",array("group_photo_photo"=>"group_photo_photo"),'left')

@@ -25,7 +25,8 @@
 						<img alt="" ng-if="items.profile_photo==null||items.profile_photo==''" src="<?php echo $this->basePath(); ?>/public/images/noimg.jpg"></a>
 					</div>
                     <div class="notification_details">
-                    	<a href="<?php echo $this->basePath(); ?>/{{items.user_profile_name}}">	<span>{{items.user_given_name}}</span></a> 			
+                    	<a href="<?php echo $this->basePath(); ?>/{{items.user_profile_name}}">	<span>{{items.user_given_name}}</span></a> 	<br>
+                    	<span ng-if="items.city_name"><i class="group-location"></i>{{items.city_name}}, {{items.country_code}}</span>
                     </div>
                     
                     <div class="clear"></div>
@@ -38,6 +39,10 @@
 					</div>
                     <div class="notification_details">
                     	<a href="<?php echo $this->basePath(); ?>/groups/{{items.group_seo_title}}"> <span>{{items.group_title}}</span> </a>
+                    	<br />
+                    	<span>Type: {{items.group_type}}</span>
+                    	<span><i class="white-location"></i>{{items.city}}, {{items.country_code}}</span>
+                    	<span><i class="white-location"></i>Members: {{items.member_count}}</span>
                     </div>                 
                 </div>
                 </span>

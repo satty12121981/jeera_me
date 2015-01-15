@@ -163,75 +163,76 @@ class IndexController extends AbstractActionController
 			$user_details = array();
 		
 			if ( !empty($postedValues['email']) ) {
-				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
+				$user_details = $this->getUserTable()->getUserFromEmail(strip_tags(trim($postedValues['email'])));
 			}
 			else if( !empty($postedValues['fbid']) ) {
-				$user_details = $this->getUserTable()->getUserByFbid($postedValues['fbid']);
+				$user_details = $this->getUserTable()->getUserByFbid(strip_tags(trim($postedValues['fbid'])));
 			}
-		
-			if ( isset($user_details) && !empty($user_details->user_id) ) {
-				$uniqueToken = $user_details->user_id."#".uniqid();
-				$encodedUniqToken = base64_encode($uniqueToken);
-				$dataArr[0]['flag'] = "Success";
-				$dataArr[0]['message'] = "Registration successful.";
-				$dataArr[0]['accesstoken'] = $encodedUniqToken;
-				echo json_encode($dataArr);
-				exit;
-			} else {
 
-				if ($postedValues['fbid']) {
-					$bcrypt = new Bcrypt();
+			if ($postedValues['fbid'] && $postedValues['accesstoken']) {
+				$bcrypt = new Bcrypt();
 
-					$data['user_fbid'] = strip_tags($postedValues['fbid']);
-					
-					if ($postedValues['email']) {
-						$email = strip_tags($postedValues['email']);
-						$email = trim($email);
-						$data['user_email'] = $email;
-					}
-					if ($postedValues['name']) {
-						$name = strip_tags($postedValues['name']);
-						$name = trim($name);
-						$data['user_given_name'] = $name;
-					}
-					$data['user_profile_name'] = $this->make_url_friendly($postedValues['name']);
-					$data['user_status'] = "live";
-					$data['user_register_type'] = "facebook";
+				$data['user_fbid'] = strip_tags($postedValues['fbid']);
+
+				$user_accessToken = strip_tags($postedValues['accesstoken']);
+				$user_accessToken = trim($user_accessToken);
+
+				$data['user_accessToken'] = $user_accessToken;
 				
+				if ($postedValues['email']) {
+					$email = strip_tags($postedValues['email']);
+					$email = trim($email);
+					$data['user_email'] = $email;
+				}
+				if ($postedValues['name']) {
+					$name = strip_tags($postedValues['name']);
+					$name = trim($name);
+					$data['user_given_name'] = $name;
+				}
+
+				$data['user_profile_name'] = $this->make_url_friendly($postedValues['name']);
+				$data['user_status'] = "live";
+			
+				if (isset($user_details) && empty($user_details->user_id)){
+					$data['user_register_type'] = "facebook";
 					$user = new User();
 					$user->exchangeArray($data);
 					$insertedUserId = $this->getUserTable()->saveUser($user);
-					$user_id = $insertedUserId;
-					$uniqueToken = $user_id."#".uniqid();
-					$encodedUniqToken = base64_encode($uniqueToken);
-					
-					$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
-					$this->getUserTable()->updateUser($data,$user_details->user_id);
-					if($insertedUserId) {
-						$profile_data['user_profile_user_id'] = $insertedUserId;
-						$profile_data['user_profile_status'] = "available";
-						$userProfile = new UserProfile();
-						$userProfile->exchangeArray($profile_data);
-						$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
-						//$this->sendVerificationEmail($user_verification_key,$insertedUserId,$data['user_email']);
-						$dataArr[0]['flag'] = "Success";
-						$dataArr[0]['message'] = "Registration successful.";
-						$dataArr[0]['accesstoken'] = $encodedUniqToken;
-						echo json_encode($dataArr);
-						exit;
-					} else {
-						$dataArr[0]['flag'] = "Failure";
-						$dataArr[0]['message'] = "Some Error Occurred. Please Try Again.";
-						echo json_encode($dataArr);
-						exit;
-					}
 				} else {
-					$dataArr[0]['flag'] = "Failure";
-					$dataArr[0]['message'] = "No Input parameters.";
+					unset($data['user_fbid']);
+					$data['user_register_type'] = "site";
+					$this->getUserTable()->updateUser($data,$user_details->user_id);
+					$dataArr[0]['flag'] = "Success";
+					$dataArr[0]['message'] = "Login Successful.";
+					$dataArr[0]['accesstoken'] = $user_accessToken;
 					echo json_encode($dataArr);
 					exit;
 				}
+
+				if($insertedUserId) {
+					$profile_data['user_profile_user_id'] = $insertedUserId;
+					$profile_data['user_profile_status'] = "available";
+					$userProfile = new UserProfile();
+					$userProfile->exchangeArray($profile_data);
+					$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
+					$dataArr[0]['flag'] = "Success";
+					$dataArr[0]['message'] = "Login Successful.";
+					$dataArr[0]['accesstoken'] = $user_accessToken;
+					echo json_encode($dataArr);
+					exit;
+				} else {
+					$dataArr[0]['flag'] = "Failure";
+					$dataArr[0]['message'] = "Some Error Occurred. Please Try Again.";
+					echo json_encode($dataArr);
+					exit;
+				}
+			} else {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "No Input Parameters.";
+				echo json_encode($dataArr);
+				exit;
 			}
+			
 		} else {
 			$dataArr[0]['flag'] = "Failure";
 			$dataArr[0]['message'] = "Request Not Authorised.";
@@ -597,48 +598,35 @@ class IndexController extends AbstractActionController
 	
 	public function make_url_friendly($string){
 
+		
 		$string = trim($string); 
-
 		$string = preg_replace('/(\W\B)/', '',  $string); 
-
 		$string = preg_replace('/[\W]+/',  '_', $string); 
-
 		$string = str_replace('-', '_', $string);
 
-		if(!$this->checkProfileNameExist($string)){
-
+		if( !empty($string) && !$this->checkProfileNameExist($string)){
 			return $string; 
-
 		}
 
 		$length = 5;
-
 		$randomString = substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, $length);
-
 		$string = strtolower($string).'_'.$randomString;
 
-		if(!$this->checkProfileNameExist($string)){
-
+		if(!$this->checkProfileNameExist($string)){ //recheck again generated name exist
 			return $string; 
-
 		} 
 
 		$string = strtolower($string).'_'.time(); 
-
 		return $string; 
-
+		
 	}
 
 	public function checkProfileNameExist($string){
 
 		if($this->getUserTable()->checkProfileNameExist($string)){
-
 			return true;
-
 		}else{
-
 			return false;
-
 		}
 
 	}

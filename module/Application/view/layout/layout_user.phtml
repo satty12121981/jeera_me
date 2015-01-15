@@ -53,7 +53,9 @@ if (defined('RUNNING_FROM_ROOT')) {
 						<img alt="" ng-if="(items.profilephoto==null||items.profilephoto=='')&&(items.user_fbid==null||items.user_fbid=='')" src="<?php echo $this->basePath(); ?>/public/images/noimg.jpg"></a>
 					</div>
 					<div class="noti_text">
-					<a href="<?php echo $this->basePath(); ?>/{{items.user_profile_name}}">	<span>{{items.user_given_name}}</span></a> 						 
+					<a href="<?php echo $this->basePath(); ?>/{{items.user_profile_name}}">	<span>{{items.user_given_name}}</span></a> 	
+					<br>
+					<span>{{items.city_name}}, {{items.country_title}}</span>					 
 					</div>
 					<div class="clear"></div>
 				</div>

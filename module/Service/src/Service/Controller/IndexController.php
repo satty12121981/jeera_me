@@ -69,9 +69,7 @@ class IndexController extends AbstractActionController
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
 			$str = $this->getRequest()->getContent();
-			/* echo"<pre>"; print_r($postedValues);
-			echo "name: "; print_r(urldecode($str));
-			die(' here'); */
+
 			if ((!isset($postedValues['name'])) || ($postedValues['name'] == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Name is required.";

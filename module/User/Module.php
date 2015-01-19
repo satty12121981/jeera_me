@@ -14,9 +14,9 @@ class Module
 {
 	public function init()
     { 
-        
 		//$this ->mvcPreDispatch();
     }
+    
     public function getAutoloaderConfig()
     { 
         return array(
@@ -26,7 +26,6 @@ class Module
             'Zend\Loader\StandardAutoloader' => array(
                 'namespaces' => array(
                     __NAMESPACE__ => __DIR__ . '/src/' . __NAMESPACE__,
-					
 					 
                 ),
             ),
@@ -43,8 +42,7 @@ class Module
                     $table = new UserTable($dbAdapter);
                     return $table;
                 },
-				  
-				 
+			  				 
 				'User\Model\UserProfileTable' =>  function($sm) {
                     $dbAdapter = $sm->get('Zend\Db\Adapter\Adapter');
                     $table = new UserProfileTable($dbAdapter);

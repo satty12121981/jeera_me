@@ -45,6 +45,18 @@ return array(
 							),
                         ),					 
                     ),
+                    'loadAllCitiesList' => array(
+                        'type' => 'segment',
+                        'options' => array(
+                            'route' => '/loadAllCitiesList',
+                             
+                            'defaults' => array(
+                                '__NAMESPACE__' => 'City\Controller',
+                                'controller' => 'city',
+                                'action'     => 'loadAllCitiesList',
+                            ),
+                        ),                   
+                    ),
 					'citylist'=>array(
                         'type' => 'segment',
                         'options' => array(

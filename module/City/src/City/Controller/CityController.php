@@ -18,7 +18,7 @@ class CityController extends AbstractActionController
 		if ($request->isPost()){
 			$post = $request->getPost();  
 			$country = $post->get('country_id');  			 
-			$cities = $this->getCityTable()->selectAllCity($country);
+			$cities = $this->getCityTable()->selectCityByCountry($country);
 		}
 		$result = new JsonModel(array( 'cities' => $cities));		 
 		return $result;
@@ -41,7 +41,7 @@ class CityController extends AbstractActionController
 			if($country_id!=''){
 				$country  = $this->getCountryTable()->getCountry($country_id);  
 				if(!empty($country)){ 
-					$cities = $this->getCityTable()->selectAllCity($country_id);
+					$cities = $this->getCityTable()->selectCityByCountry($country_id);
 					if(!empty($cities)){
 					$dataArr[0]['flag'] = "Success";
 					$dataArr[0]['cities'] = $cities;            
@@ -71,4 +71,32 @@ class CityController extends AbstractActionController
 			exit;
 		}
 	}
+
+	public function loadAllCitiesListAction(){
+
+		$request = $this->getRequest();
+
+		if($this->getRequest()->getMethod() == 'POST') {
+
+			$cities = $this->getCityTable()->selectAllCity();
+
+			if(!empty($cities)) {
+				$dataArr[0]['flag'] = "Success";
+				$dataArr[0]['cities'] = $cities;            
+				echo json_encode($dataArr);
+				exit;
+			} else {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "No more cities are available";
+				echo json_encode($dataArr);
+			}
+		}
+		else {
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request not authorised.";
+			echo json_encode($dataArr);
+			exit;
+		}
+	}
+
 }

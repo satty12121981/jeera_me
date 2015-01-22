@@ -162,22 +162,26 @@ class IndexController extends AbstractActionController
 			$str = $this->getRequest()->getContent();
 			$user_details = array();
 		
-			if ( !empty($postedValues['email']) ) {
+			if ( !empty($postedValues['email']) && filter_var($postedValues['email'], FILTER_VALIDATE_EMAIL)) {
 				$user_details = $this->getUserTable()->getUserFromEmail(strip_tags(trim($postedValues['email'])));
 			}
 			else if( !empty($postedValues['fbid']) ) {
 				$user_details = $this->getUserTable()->getUserByFbid(strip_tags(trim($postedValues['fbid'])));
 			}
 
-			if ($postedValues['fbid'] && $postedValues['accesstoken']) {
+			if ($postedValues['fbid'] && $postedValues['accesstoken']){
+				$fbid = trim($postedValues['fbid']);
+				$accesstoken = trim($postedValues['accesstoken']);
+			}
+
+			if (!empty($fbid) && !empty($accesstoken)) {
 				$bcrypt = new Bcrypt();
 
-				$data['user_fbid'] = strip_tags($postedValues['fbid']);
+				$data['user_fbid'] = strip_tags($fbid);
 
-				$user_accessToken = strip_tags($postedValues['accesstoken']);
-				$user_accessToken = trim($user_accessToken);
-
-				$data['user_accessToken'] = $user_accessToken;
+				$uniqueToken = $postedValues['fbid']."#".uniqid();
+				$encodedUniqToken = base64_encode($uniqueToken);
+				$data['user_accessToken'] = $encodedUniqToken;
 				
 				if ($postedValues['email']) {
 					$email = strip_tags($postedValues['email']);
@@ -204,7 +208,7 @@ class IndexController extends AbstractActionController
 					$this->getUserTable()->updateUser($data,$user_details->user_id);
 					$dataArr[0]['flag'] = "Success";
 					$dataArr[0]['message'] = "Login Successful.";
-					$dataArr[0]['accesstoken'] = $user_accessToken;
+					$dataArr[0]['accesstoken'] = $encodedUniqToken;
 					echo json_encode($dataArr);
 					exit;
 				}
@@ -217,7 +221,7 @@ class IndexController extends AbstractActionController
 					$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
 					$dataArr[0]['flag'] = "Success";
 					$dataArr[0]['message'] = "Login Successful.";
-					$dataArr[0]['accesstoken'] = $user_accessToken;
+					$dataArr[0]['accesstoken'] = $encodedUniqToken;
 					echo json_encode($dataArr);
 					exit;
 				} else {

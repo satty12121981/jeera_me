@@ -54,11 +54,12 @@ class UserTable extends AbstractTableGateway
 			'user_profile_photo_id'  => $user->user_profile_photo_id,			 
 			'user_mobile'  => $user->user_mobile,
 			'user_verification_key'  => $user->user_verification_key,
-			 
+		 
 			'user_modified_timestamp'  => date("Y-m-d H:i:s"),
 			'user_modified_ip_address'  => $user->user_modified_ip_address,	
 			'user_register_type'  => $user->user_register_type,
 			'user_fbid'			=> $user->user_fbid,
+			'user_accessToken'	=> $user->user_accessToken,
         );
 		 $user_id = (int)$user->user_id;
         if ($user_id == 0) {

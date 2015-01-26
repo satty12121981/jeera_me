@@ -18,7 +18,7 @@ class CityController extends AbstractActionController
 		if ($request->isPost()){
 			$post = $request->getPost();  
 			$country = $post->get('country_id');  			 
-			$cities = $this->getCityTable()->selectAllCity($country);
+			$cities = $this->getCityTable()->selectCityByCountry($country);
 		}
 		$result = new JsonModel(array( 'cities' => $cities));		 
 		return $result;
@@ -41,7 +41,7 @@ class CityController extends AbstractActionController
 			if($country_id!=''){
 				$country  = $this->getCountryTable()->getCountry($country_id);  
 				if(!empty($country)){ 
-					$cities = $this->getCityTable()->selectAllCity($country_id);
+					$cities = $this->getCityTable()->selectCityByCountry($country_id);
 					if(!empty($cities)){
 					$dataArr[0]['flag'] = "Success";
 					$dataArr[0]['cities'] = $cities;            
@@ -71,4 +71,54 @@ class CityController extends AbstractActionController
 			exit;
 		}
 	}
+
+	public function loadAllCitiesListAction(){
+
+		$request = $this->getRequest();
+
+		if($this->getRequest()->getMethod() == 'POST') {
+
+			$cities = $this->getCityTable()->selectAllCity();
+			//print_r($cities);
+
+			if(!empty($cities)) {
+				$dataArr[0]['flag'] = "Success";
+				$dataArr[0]['cities'] = $cities;
+				$loadcitiescountries = array();
+	            if ($dataArr){
+	            	foreach($cities as $index => $citylist){
+						$tempcites = explode(",", $citylist['city_name']);
+						$arr_cities[0] = array();
+						foreach($tempcites as $indexes => $splitlist){
+							$arr_cities = array();
+							$arr_cities = explode("|", $splitlist);
+            				$objarr_city[] = array('city_id'=>$arr_cities[0],'city_name'=>$arr_cities[1]);
+        				
+            			}
+            			$loadcitiescountries[] = array(
+							'country_id' =>$citylist['country_id'],
+							'country_title' =>$citylist['country_title'],
+							'country_code' =>$citylist['country_code'],
+							'cities' =>$objarr_city,
+							);
+						unset($objarr_city);
+            		}
+
+	            }
+				echo json_encode($loadcitiescountries);
+				exit;
+			} else {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "No more cities are available";
+				echo json_encode($dataArr);
+			}
+		}
+		else {
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request not authorised.";
+			echo json_encode($dataArr);
+			exit;
+		}
+	}
+
 }

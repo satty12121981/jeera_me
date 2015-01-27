@@ -694,6 +694,24 @@ class UserGroupTable extends AbstractTableGateway
 		$row =  $resultSet->current();
 		return $row;
 	}
+
+	public function getUserGroupCount($user_id){
+		$group_select = new Select;
+		$group_select->from('y2m_user_group')
+					->columns(array('group_count'=>new Expression('COUNT(user_group_id)'),'user_group_user_id'=>'user_group_user_id'))
+					->where(array("user_group_status='available'"))
+					->where(array('user_group_user_id='.$user_id));
+		$group_select->group('y2m_user_group.user_group_user_id');
+		 
+		$statement = $this->adapter->createStatement();
+		$group_select->prepareStatement($this->adapter, $statement);		 
+		$resultSet = new ResultSet();
+		//echo $group_select->getSqlString();exit;
+		$resultSet->initialize($statement->execute());	
+		$row =  $resultSet->current();
+		return $row;
+	}
+
 	public function getOwnersCount($group_id){
 		$select = new Select;
 		$select->from('y2m_user_group')

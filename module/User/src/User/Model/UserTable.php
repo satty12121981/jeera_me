@@ -135,7 +135,8 @@ class UserTable extends AbstractTableGateway
 			   ->where(array('y2m_user.user_id = '.$user_id));
 		$statement = $this->adapter->createStatement();
 		$select->prepareStatement($this->adapter, $statement);
-		//echo $select->getSqlString();exit;
+		//echo $select->getSqlString();
+		//exit;
 		$resultSet = new ResultSet();
 		$resultSet->initialize($statement->execute());
 		return $resultSet->current();

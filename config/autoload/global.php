@@ -14,7 +14,7 @@
 return array(
     'db' => array(
         'driver'         => 'Pdo',
-        'dsn'            => 'mysql:dbname=y2m_jeera_me;host=localhost',
+        'dsn'            => 'mysql:dbname=y2m_jeera_v12;host=localhost',
 		'username'       => 'root',
         'password'       => 'chandra789',
         'driver_options' => array(
@@ -27,14 +27,14 @@ return array(
 		'group_img_path_absolute_path' =>"http://y2m/development/jeera_me/public/datagd/group/",
 		'UploadPath'       => "/var/www/html/jeera_me/public/datagd/",
 		'AlbumUploadPath'       => "/var/www/html/jeera_me/public/album/",
-		'TagCategoryPath'  => "/var/www/html/jeera_me/public/datagd/tag_category/",
+		'TagCategoryPath'  => "datagd/tag_category/",
 		'base_url' =>'http://'.@$_SERVER['SERVER_NAME'].'/development/jeera_me',
 		'fbredirect' =>"http://y2m.ae/development/jeera_me/user/fbredirect",
     ),
 	'image_folders' => array(
         'group'         => "datagd/group/",	
 		'tag_category'         => "datagd/tag_category/",
-		 'profile_path'         => "datagd/profile/", 
+		'profile_path'         => "datagd/profile/", 
     ),
     'service_manager' => array(
         'factories' => array(

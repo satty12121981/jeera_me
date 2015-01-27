@@ -15,7 +15,7 @@ class UserFriendTable extends AbstractTableGateway
         $this->initialize();
     }
     public function fetchAll(){  return $this->select();  }	
-	public function fetchAllUserFriend($UserId){
+	public function fetchAllUserFriend($UserId,$limit=0){
 		$UserId = (int) $UserId;
 		$subselect = new Select;
         $expression = new Expression(
@@ -31,9 +31,16 @@ class UserFriendTable extends AbstractTableGateway
             ->join(array('temp1'=>'y2m_user'), 'temp1.user_id = temp.friend_id',array('*'))
             ->join(array("profile_photo"=>"y2m_user_profile_photo"),"profile_photo.profile_photo_id = temp1.user_profile_photo_id",array("profile_photo"=>"profile_photo"),"left")
             ->columns(array('*'));
+
+        if ($limit) {
+        	$mainSelect->limit($limit)
+        	 		   ->order('temp1.user_id ASC');
+        }
+        
 		$statement = $this->adapter->createStatement();
         $mainSelect->prepareStatement($this->adapter, $statement);
 		//echo $mainSelect->getSqlString();
+		//exit;
 		$resultSet = new ResultSet();
 		$resultSet->initialize($statement->execute());		
 		return $resultSet;

@@ -35,6 +35,10 @@ use User\Model\User;
 
 use User\Model\UserProfile;
 
+use User\Model\UserFriend;
+
+use Tag\Model\UserTag;
+
 use User\Model\Recoveryemails;
 
 use User\Form\Login;       
@@ -54,6 +58,9 @@ class IndexController extends AbstractActionController
     public $form_error ;
 	protected $userTable;
 	protected $userProfileTable;
+	protected $userFriendTable;
+	protected $userGroupTable;
+	protected $userTagTable;
 	protected $RecoveryemailsTable;
 	protected $WEB_STAMPTIME;
 	
@@ -138,7 +145,7 @@ class IndexController extends AbstractActionController
 				$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
 				$this->sendVerificationEmail($user_verification_key,$insertedUserId,$data['user_email']);
 				$dataArr[0]['flag'] = "Success";
-				$dataArr[0]['message'] = "Registration successful.";            
+				$dataArr[0]['message'] = "Registration successful.";  
 				echo json_encode($dataArr);
 				exit;
 			} else{
@@ -301,6 +308,7 @@ class IndexController extends AbstractActionController
 					exit;
 				}
 			} else {
+				$config = $this->getServiceLocator()->get('Config');
 				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
 				$userId = $user_details->user_id;
 				$set_secretcode = $this->rec_create_secretcode($postedValues['email']);
@@ -309,8 +317,60 @@ class IndexController extends AbstractActionController
 				$set_timestamp = $this->rec_create_timestamp();
 				$data_array = compact('set_timestamp');
 				$this->getUserTable()->updateUser($data_array,$user_details->user_id);
+				$profileDetails = $this->getUserTable()->getProfileDetails($user_details->user_id);
+				$usertags = $this->getUserTagTable()->getAllUserTags($user_details->user_id);
+
+				if (isset($usertags)&& !empty($usertags)){
+					foreach ($usertags as $key => $tags) {
+						$swapusertags[$key]['tag_category_icon']= 'public/'.$config['image_folders']['tag_category'].$tags['tag_category_icon'];
+						$swapusertags[$key]['tag_category_title']= $tags['tag_category_title'];
+						$swapusertags[$key]['tag_title']= $tags['tag_title'];
+						$swapusertags[$key]['category_id']= $tags['category_id'];
+						$swapusertags[$key]['tag_id']= $tags['tag_id'];
+					}
+				}			
+				$groupCountDetails = $this->getUserGroupTable()->getUserGroupCount($user_details->user_id);
+				unset($profileDetails->user_register_type);
+				unset($profileDetails->user_profile_city_id);
+				unset($profileDetails->user_profile_country_id);
+				unset($profileDetails->user_profile_profession);
+				unset($profileDetails->user_profile_profession_at);
+				unset($profileDetails->user_address);
+				unset($groupCountDetails->user_group_user_id);
+
+				$friends = $this->getUserFriendTable()->fetchAllUserFriend($user_details->user_id,2);
+
+				if (isset($friends)&& !empty($friends)){
+					foreach ($friends as $key => $friend){
+						$friend_profile_pic = $this->getUserTable()->getUserProfilePic($friend->friend_id);
+						$swapuserfriends = array(
+							'friend_user_id' => $friend->friend_id,
+							'friend_profile_name' => $friend->user_profile_name,
+							'friend_given_name' => $friend->user_given_name,
+							'friend_fbid' => $friend->user_fbid,
+							);
+						if (isset($friend_profile_pic) && !empty($friend_profile_pic->biopic)) 
+							$swapuserfriends['friend_pictureurl'] = 'public/'.$config['image_folders']['profile_path'].$friend->friend_id.'/'.$friend_profile_pic->biopic;
+						else  
+							$swapuserfriends['friend_pictureurl'] = "";
+						$moveuserfriends[] = $swapuserfriends;
+					}
+				}
+
 				$dataArr[0]['flag'] = "Success";
 				$dataArr[0]['accesstoken'] = $set_secretcode;
+				$dataArr[1]['userfriends'] = $moveuserfriends;
+				$dataArr[2]['userinterests'] = $swapusertags;
+				$dataArr[3]['userprofiledetails'] = $profileDetails;
+				
+				if (!empty($dataArr[3]['userprofiledetails']->profile_photo))
+					$dataArr[3]['userprofiledetails']->profile_photo = 'public/'.$config['image_folders']['profile_path'].$userId.'/'.$dataArr[3]['userprofiledetails']->profile_photo;
+				else
+					$dataArr[3]['userprofiledetails']->profile_photo = "";
+				if (!empty($groupCountDetails))
+					$dataArr[5]['usergroupscount'] = $groupCountDetails;
+				else 
+					$dataArr[5]['usergroupscount'] = 0;      
 				echo json_encode($dataArr);
 				exit;
 			}
@@ -656,6 +716,30 @@ class IndexController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 
 		return  $this->userProfileTable = (!$this->userProfileTable)?$sm->get('User\Model\UserProfileTable'):$this->userProfileTable;    
+
+	}
+
+	public function getUserFriendTable(){
+
+		$sm = $this->getServiceLocator();
+
+		return  $this->userFriendTable = (!$this->userFriendTable)?$sm->get('User\Model\UserFriendTable'):$this->userFriendTable;    
+
+	}
+
+	public function getUserGroupTable(){
+
+		$sm = $this->getServiceLocator();
+
+		return  $this->userGroupTable = (!$this->userGroupTable)?$sm->get('Groups\Model\UserGroupTable'):$this->userGroupTable;    
+
+	}
+
+	public function getUserTagTable(){
+
+		$sm = $this->getServiceLocator();
+
+		return  $this->userTagTable = (!$this->userTagTable)?$sm->get('Tag\Model\UserTagTable'):$this->userTagTable;    
 
 	}
 

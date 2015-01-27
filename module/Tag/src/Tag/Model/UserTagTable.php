@@ -110,8 +110,9 @@ class UserTagTable extends AbstractTableGateway
 	public function getAllUserTags($user_id){
 		$select = new Select;
 		$select->from('y2m_user_tag')
+			->columns(array())
     		->join('y2m_tag', 'y2m_tag.tag_id = y2m_user_tag.user_tag_tag_id',  array('category_id','tag_title','tag_id'))
-			->join('y2m_tag_category', 'y2m_tag_category.tag_category_id = y2m_tag.category_id', array())
+			->join('y2m_tag_category', 'y2m_tag_category.tag_category_id = y2m_tag.category_id', array('tag_category_title','tag_category_icon'))
 			->where(array('y2m_user_tag.user_tag_user_id' => $user_id))
 			->where(array('y2m_tag_category.tag_category_status' => 1))			 
 			->order(array('y2m_tag.tag_title ASC'));		 	

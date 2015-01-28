@@ -273,17 +273,12 @@ class IndexController extends AbstractActionController
 			$authAdapter = new AuthAdapter($dbAdapter);
 	
 			$authAdapter
-	
 				->setTableName('y2m_user')
-	
 				->setIdentityColumn('user_email')
-	
 				->setCredentialColumn('user_password');					
 	
 			$authAdapter
-	
 				->setIdentity(addslashes($postedValues['email']))
-	
 				->setCredential($postedValues['password']);
 	
 			$result = $authAdapter->authenticate();
@@ -350,28 +345,33 @@ class IndexController extends AbstractActionController
 							'friend_fbid' => $friend->user_fbid,
 							);
 						if (isset($friend_profile_pic) && !empty($friend_profile_pic->biopic)) 
-							$swapuserfriends['friend_pictureurl'] = 'public/'.$config['image_folders']['profile_path'].$friend->friend_id.'/'.$friend_profile_pic->biopic;
+							$swapuserfriends['friend_pictureurl'] = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$friend->friend_id.'/'.$friend_profile_pic->biopic;
+						else if(isset($friend->user_fbid) && !empty($friend->user_fbid))
+							$swapuserfriends['friend_pictureurl'] = 'http://graph.facebook.com/'.$friend->user_fbid.'/picture?type=normal';
 						else  
 							$swapuserfriends['friend_pictureurl'] = "";
 						$moveuserfriends[] = $swapuserfriends;
 					}
 				}
 
-				$dataArr[0]['flag'] = "Success";
-				$dataArr[0]['accesstoken'] = $set_secretcode;
-				$dataArr[1]['userfriends'] = $moveuserfriends;
-				$dataArr[2]['userinterests'] = $swapusertags;
-				$dataArr[3]['userprofiledetails'] = $profileDetails;
-				
-				if (!empty($dataArr[3]['userprofiledetails']->profile_photo))
-					$dataArr[3]['userprofiledetails']->profile_photo = 'public/'.$config['image_folders']['profile_path'].$userId.'/'.$dataArr[3]['userprofiledetails']->profile_photo;
+				$dataArr['flag'] = "Success";
+				$dataArr['accesstoken'] = $set_secretcode;
+				$dataArr['userfriends'] = $moveuserfriends;
+				$dataArr['userinterests'] = $swapusertags;
+				$dataArr['userprofiledetails'] = $profileDetails;
+
+				if (!empty($dataArr['userprofiledetails']->profile_photo))
+					$dataArr['userprofiledetails']->profile_photo = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$userId.'/'.$dataArr['userprofiledetails']->profile_photo;
+				else if(isset($dataArr['userprofiledetails']->user_fbid) && !empty($dataArr['userprofiledetails']->user_fbid))
+					$dataArr['userprofiledetails']->profile_photo = 'http://graph.facebook.com/'.$dataArr['userprofiledetails']->user_fbid.'/picture?type=normal';
 				else
-					$dataArr[3]['userprofiledetails']->profile_photo = "";
+					$dataArr['userprofiledetails']->profile_photo = "";
 				if (!empty($groupCountDetails))
-					$dataArr[5]['usergroupscount'] = $groupCountDetails;
+					$dataArr['usergroupscount'] = $groupCountDetails;
 				else 
-					$dataArr[5]['usergroupscount'] = 0;      
+					$dataArr['usergroupscount'] = 0;      
 				echo json_encode($dataArr);
+				exit;
 				exit;
 			}
 		} else {
@@ -555,113 +555,72 @@ class IndexController extends AbstractActionController
 	public function sendPasswordResetMail($user_verification_key,$insertedRecoveryid,$emailId){
 
 		$this->renderer = $this->getServiceLocator()->get('ViewRenderer');	 
-
 		$user_recoverId = md5(md5('recoverid~'.$insertedRecoveryid));
-
 		$body = $this->renderer->render('user/email/emailResetPassword.phtml', array('user_verification_key'=>$user_verification_key,'user_recoverId'=>$user_recoverId));
-
 		$htmlPart = new MimePart($body);
-
 		$htmlPart->type = "text/html";
 
-
-
 		$textPart = new MimePart($body);
-
 		$textPart->type = "text/plain";
 
 
-
 		$body = new MimeMessage();
-
 		$body->setParts(array($textPart, $htmlPart));
 
 
-
 		$message = new Mail\Message();
-
 		$message->setFrom('admin@jeera.com');
-
 		$message->addTo($emailId);
 
 		//$message->addReplyTo($reply);							 
 
 		$message->setSender("Jeera");
-
 		$message->setSubject("Reset password request");
-
 		$message->setEncoding("UTF-8");
-
 		$message->setBody($body);
-
 		$message->getHeaders()->get('content-type')->setType('multipart/alternative');
 
 
-
 		$transport = new Mail\Transport\Sendmail();
-
 		$transport->send($message);
 
 		return true;
-
 	}
 	
 	public function sendVerificationEmail($user_verification_key,$insertedUserId,$emailId){
 
 		$this->renderer = $this->getServiceLocator()->get('ViewRenderer');	 
-
 		$user_insertedUserId = md5(md5('userId~'.$insertedUserId));
-
 		$body = $this->renderer->render('user/email/emailVarification.phtml', array('user_verification_key'=>$user_verification_key,'user_insertedUserId'=>$user_insertedUserId));
-		
 		$htmlPart = new MimePart($body);
-
 		$htmlPart->type = "text/html";
 
-
-
 		$textPart = new MimePart($body);
-
 		$textPart->type = "text/plain";
 
 
-
 		$body = new MimeMessage();
-
 		$body->setParts(array($textPart, $htmlPart));
 
-
-
 		$message = new Mail\Message();
-
 		$message->setFrom('admin@jeera.com');
-
 		$message->addTo($emailId);
 
 		//$message->addReplyTo($reply);							 
 
 		$message->setSender("Jeera");
-
 		$message->setSubject("Registration confirmation");
-
 		$message->setEncoding("UTF-8");
-
 		$message->setBody($body);
-
 		$message->getHeaders()->get('content-type')->setType('multipart/alternative');
 
-
-
 		$transport = new Mail\Transport\Sendmail();
-
 		$transport->send($message);
-
 		return true;
 
 	}
 	
 	public function make_url_friendly($string){
-
 		
 		$string = trim($string); 
 		$string = preg_replace('/(\W\B)/', '',  $string); 
@@ -686,69 +645,46 @@ class IndexController extends AbstractActionController
 	}
 
 	public function checkProfileNameExist($string){
-
 		if($this->getUserTable()->checkProfileNameExist($string)){
 			return true;
-		}else{
+		} else {
 			return false;
 		}
-
 	}
 
 	public function checkUserActive($email){
-
 		$user_data= $this->getUserTable()->getUserFromEmail($email);
-
 		if($user_data->user_status =='live'){return true;}else{return false;}
-
 	}
 
 	public function getUserTable(){
-
 		$sm = $this->getServiceLocator();
-
 		return  $this->userTable = (!$this->userTable)?$sm->get('User\Model\UserTable'):$this->userTable;    
-
 	}
 	
 	public function getUserProfileTable(){
-
 		$sm = $this->getServiceLocator();
-
 		return  $this->userProfileTable = (!$this->userProfileTable)?$sm->get('User\Model\UserProfileTable'):$this->userProfileTable;    
-
 	}
 
 	public function getUserFriendTable(){
-
 		$sm = $this->getServiceLocator();
-
 		return  $this->userFriendTable = (!$this->userFriendTable)?$sm->get('User\Model\UserFriendTable'):$this->userFriendTable;    
-
 	}
 
 	public function getUserGroupTable(){
-
 		$sm = $this->getServiceLocator();
-
 		return  $this->userGroupTable = (!$this->userGroupTable)?$sm->get('Groups\Model\UserGroupTable'):$this->userGroupTable;    
-
 	}
 
 	public function getUserTagTable(){
-
 		$sm = $this->getServiceLocator();
-
 		return  $this->userTagTable = (!$this->userTagTable)?$sm->get('Tag\Model\UserTagTable'):$this->userTagTable;    
-
 	}
 
 	public function getRecoveremailsTable(){
-
 		$sm = $this->getServiceLocator();
-
 		return $this->RecoveryemailsTable =(!$this->RecoveryemailsTable)?$sm->get('User\Model\RecoveryemailsTable'):$this->RecoveryemailsTable;
-
 	}
 	
 }

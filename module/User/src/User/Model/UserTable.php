@@ -99,10 +99,10 @@ class UserTable extends AbstractTableGateway
         $rowset = $this->select(array('user_profile_name' => $profile_name));
         return $rowset->current();        
     }
-	public function  getProfileDetails($user_id){
+	public function getProfileDetails($user_id){
 		$select = new select();
 		$select->from('y2m_user')
-			   ->columns(array("user_id"=>"user_id","user_given_name"=>"user_given_name","user_first_name"=>"user_first_name","user_middle_name"=>"user_middle_name","user_last_name"=>"user_last_name","user_profile_name"=>"user_profile_name","user_email"=>"user_email","user_gender"=>"user_gender","user_mobile"=>"user_mobile","user_register_type"=>"user_register_type","user_fbid"=>"user_fbid"))
+			   ->columns(array("user_id"=>"user_id","user_given_name"=>"user_given_name","user_first_name"=>"user_first_name","user_middle_name"=>"user_middle_name","user_last_name"=>"user_last_name","user_profile_name"=>"user_profile_name","user_email"=>"user_email","user_gender"=>"user_gender","user_mobile"=>"user_mobile","user_status"=>"user_status","user_register_type"=>"user_register_type","user_fbid"=>"user_fbid"))
 			   ->join("y2m_user_profile","y2m_user_profile.user_profile_user_id = y2m_user.user_id",array("user_profile_dob","user_profile_about_me","user_profile_profession","user_profile_profession_at","user_profile_city_id","user_profile_country_id","user_address","user_profile_current_location","user_profile_phone","user_profile_emailme_id","user_profile_notifyme_id"),"left")
 			   ->join("y2m_country","y2m_country.country_id = y2m_user_profile.user_profile_country_id",array("country_title","country_code","country_id"),"left")
 			   ->join("y2m_city","y2m_city.city_id = y2m_user_profile.user_profile_city_id",array("city_name"=>"name","city_id"=>"city_id"),"left")

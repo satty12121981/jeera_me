@@ -143,9 +143,8 @@ class IndexController extends AbstractActionController
 				$userProfile = new UserProfile();
 				$userProfile->exchangeArray($profile_data);
 				$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
-				$this->sendVerificationEmail($user_verification_key,$insertedUserId,$data['user_email']);
-				$dataArr[0]['flag'] = "Success";
-				$dataArr[0]['message'] = "Registration successful.";  
+				//$this->sendVerificationEmail($user_verification_key,$insertedUserId,$data['user_email']);
+				$dataArr = $this->getAllUserRelatedDetails($user_details->user_id,$data['user_accessToken']);
 				echo json_encode($dataArr);
 				exit;
 			} else{
@@ -282,7 +281,7 @@ class IndexController extends AbstractActionController
 				->setCredential($postedValues['password']);
 	
 			$result = $authAdapter->authenticate();
-			
+						
 			if (!$result->isValid()) {
 				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
 				if (empty($user_details)) {
@@ -290,88 +289,20 @@ class IndexController extends AbstractActionController
 					$dataArr[0]['message'] = "Email not exists.";
 					echo json_encode($dataArr);
 					exit;
-				}
-				if($this->checkUserActive($postedValues['email'])){
-					$dataArr[0]['flag'] = "Failure";
-					$dataArr[0]['message'] = "Invalid Email or Password.";
-					echo json_encode($dataArr);
-					exit;
 				} else {
-					$dataArr[0]['flag'] = "Failure";
-					$dataArr[0]['message'] = "This account is not activated yet. Please check your mail and follow the steps.";
+					$set_secretcode = $this->updateAccessToken($user_details->user_email,$user_details->user_id);
+					$dataArr = $this->getAllUserRelatedDetails($user_details->user_id,$set_secretcode);
 					echo json_encode($dataArr);
 					exit;
 				}
 			} else {
-				$config = $this->getServiceLocator()->get('Config');
+				$auth = new AuthenticationService();
+				$storage = $auth->getStorage();
+				$storage->write($authAdapter->getResultRowObject(null,'user_password'));
 				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
-				$userId = $user_details->user_id;
-				$set_secretcode = $this->rec_create_secretcode($postedValues['email']);
-				$data['user_temp_accessToken'] = $set_secretcode;
-				$this->getUserTable()->updateUser($data,$user_details->user_id);
-				$set_timestamp = $this->rec_create_timestamp();
-				$data_array = compact('set_timestamp');
-				$this->getUserTable()->updateUser($data_array,$user_details->user_id);
-				$profileDetails = $this->getUserTable()->getProfileDetails($user_details->user_id);
-				$usertags = $this->getUserTagTable()->getAllUserTags($user_details->user_id);
-
-				if (isset($usertags)&& !empty($usertags)){
-					foreach ($usertags as $key => $tags) {
-						$swapusertags[$key]['tag_category_icon']= 'public/'.$config['image_folders']['tag_category'].$tags['tag_category_icon'];
-						$swapusertags[$key]['tag_category_title']= $tags['tag_category_title'];
-						$swapusertags[$key]['tag_title']= $tags['tag_title'];
-						$swapusertags[$key]['category_id']= $tags['category_id'];
-						$swapusertags[$key]['tag_id']= $tags['tag_id'];
-					}
-				}			
-				$groupCountDetails = $this->getUserGroupTable()->getUserGroupCount($user_details->user_id);
-				unset($profileDetails->user_register_type);
-				unset($profileDetails->user_profile_city_id);
-				unset($profileDetails->user_profile_country_id);
-				unset($profileDetails->user_profile_profession);
-				unset($profileDetails->user_profile_profession_at);
-				unset($profileDetails->user_address);
-				unset($groupCountDetails->user_group_user_id);
-
-				$friends = $this->getUserFriendTable()->fetchAllUserFriend($user_details->user_id,2);
-
-				if (isset($friends)&& !empty($friends)){
-					foreach ($friends as $key => $friend){
-						$friend_profile_pic = $this->getUserTable()->getUserProfilePic($friend->friend_id);
-						$swapuserfriends = array(
-							'friend_user_id' => $friend->friend_id,
-							'friend_profile_name' => $friend->user_profile_name,
-							'friend_given_name' => $friend->user_given_name,
-							'friend_fbid' => $friend->user_fbid,
-							);
-						if (isset($friend_profile_pic) && !empty($friend_profile_pic->biopic)) 
-							$swapuserfriends['friend_pictureurl'] = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$friend->friend_id.'/'.$friend_profile_pic->biopic;
-						else if(isset($friend->user_fbid) && !empty($friend->user_fbid))
-							$swapuserfriends['friend_pictureurl'] = 'http://graph.facebook.com/'.$friend->user_fbid.'/picture?type=normal';
-						else  
-							$swapuserfriends['friend_pictureurl'] = "";
-						$moveuserfriends[] = $swapuserfriends;
-					}
-				}
-
-				$dataArr['flag'] = "Success";
-				$dataArr['accesstoken'] = $set_secretcode;
-				$dataArr['userfriends'] = $moveuserfriends;
-				$dataArr['userinterests'] = $swapusertags;
-				$dataArr['userprofiledetails'] = $profileDetails;
-
-				if (!empty($dataArr['userprofiledetails']->profile_photo))
-					$dataArr['userprofiledetails']->profile_photo = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$userId.'/'.$dataArr['userprofiledetails']->profile_photo;
-				else if(isset($dataArr['userprofiledetails']->user_fbid) && !empty($dataArr['userprofiledetails']->user_fbid))
-					$dataArr['userprofiledetails']->profile_photo = 'http://graph.facebook.com/'.$dataArr['userprofiledetails']->user_fbid.'/picture?type=normal';
-				else
-					$dataArr['userprofiledetails']->profile_photo = "";
-				if (!empty($groupCountDetails))
-					$dataArr['usergroupscount'] = $groupCountDetails;
-				else 
-					$dataArr['usergroupscount'] = 0;      
+				$set_secretcode = $this->updateAccessToken($postedValues['email'],$user_details->user_id);
+				$dataArr = $this->getAllUserRelatedDetails($user_details->user_id,$set_secretcode);
 				echo json_encode($dataArr);
-				exit;
 				exit;
 			}
 		} else {
@@ -380,6 +311,16 @@ class IndexController extends AbstractActionController
 			echo json_encode($dataArr);
 			exit;
 		}
+	}
+
+	public function updateAccessToken($email,$user_id){
+		$set_secretcode = $this->rec_create_secretcode($email);
+		$data['user_temp_accessToken'] = $set_secretcode;
+		$this->getUserTable()->updateUser($data,$user_id);
+		$set_timestamp = $this->rec_create_timestamp();
+		$data_array = compact('set_timestamp');
+		$this->getUserTable()->updateUser($data_array,$user_id);
+		return $set_secretcode;
 	}
 		
 	public function loginaccessAction(){
@@ -453,7 +394,7 @@ class IndexController extends AbstractActionController
 
 	public function rec_create_secretcode($email){
         $user_details = $this->getUserTable()->getUserFromEmail($email);
-		// echo '<pre>'; print_r($user_details); die;
+		
         if ($user_details->set_timestamp != '') {
             $current_timestamp = $this->rec_create_timestamp(); //get current time stamp
  
@@ -618,6 +559,84 @@ class IndexController extends AbstractActionController
 		$transport->send($message);
 		return true;
 
+	}
+
+	public function getAllUserRelatedDetails($user_id, $set_secretcode){
+		$config = $this->getServiceLocator()->get('Config');
+		$swapusertags = array();
+		$profileDetails = array();
+		$usertags = array();
+		$groupCountDetails = array();
+		$friends = array();
+		$moveuserfriends = array();
+		$dataArr = array();
+		$user_details = array();
+
+		$profileDetails = $this->getUserTable()->getProfileDetails($user_id);
+		$usertags = $this->getUserTagTable()->getAllUserTags($user_id);
+
+		if (isset($usertags)&& !empty($usertags)){
+			foreach ($usertags as $key => $tags) {
+				$swapusertags[$key]['tag_category_icon']= 'public/'.$config['image_folders']['tag_category'].$tags['tag_category_icon'];
+				$swapusertags[$key]['tag_category_title']= $tags['tag_category_title'];
+				$swapusertags[$key]['tag_title']= $tags['tag_title'];
+				$swapusertags[$key]['category_id']= $tags['category_id'];
+				$swapusertags[$key]['tag_id']= $tags['tag_id'];
+			}
+		}			
+		$groupCountDetails = $this->getUserGroupTable()->getUserGroupCount($user_id);
+		unset($profileDetails->user_register_type);
+		unset($profileDetails->user_profile_city_id);
+		unset($profileDetails->user_profile_country_id);
+		unset($profileDetails->user_profile_profession);
+		unset($profileDetails->user_profile_profession_at);
+		unset($profileDetails->user_address);
+		unset($groupCountDetails->user_group_user_id);
+
+		$friends = $this->getUserFriendTable()->fetchAllUserFriend($user_id,2);
+
+		if (isset($friends)&& !empty($friends)){
+			foreach ($friends as $key => $friend){
+				$friend_profile_pic = $this->getUserTable()->getUserProfilePic($friend->friend_id);
+				$swapuserfriends = array(
+					'friend_user_id' => $friend->friend_id,
+					'friend_profile_name' => $friend->user_profile_name,
+					'friend_given_name' => $friend->user_given_name,
+					'friend_fbid' => $friend->user_fbid,
+					);
+				if (isset($friend_profile_pic) && !empty($friend_profile_pic->biopic)) 
+					$swapuserfriends['friend_pictureurl'] = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$friend->friend_id.'/'.$friend_profile_pic->biopic;
+				else if(isset($friend->user_fbid) && !empty($friend->user_fbid))
+					$swapuserfriends['friend_pictureurl'] = 'http://graph.facebook.com/'.$friend->user_fbid.'/picture?type=normal';
+				else  
+					$swapuserfriends['friend_pictureurl'] = "";
+				$moveuserfriends[] = $swapuserfriends;
+			}
+		}
+
+		$dataArr['flag'] = "Success";
+		$dataArr['accesstoken'] = $set_secretcode;
+		$dataArr['userfriends'] = $moveuserfriends;
+		$dataArr['userinterests'] = $swapusertags;
+		$dataArr['userprofiledetails'] = $profileDetails;
+
+		if (!empty($dataArr['userprofiledetails']->profile_photo))
+			$dataArr['userprofiledetails']->profile_photo = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$dataArr['userprofiledetails']->profile_photo;
+		else if(isset($dataArr['userprofiledetails']->user_fbid) && !empty($dataArr['userprofiledetails']->user_fbid))
+			$dataArr['userprofiledetails']->profile_photo = 'http://graph.facebook.com/'.$dataArr['userprofiledetails']->user_fbid.'/picture?type=normal';
+		else
+			$dataArr['userprofiledetails']->profile_photo = "";
+		if (!empty($groupCountDetails))
+			$dataArr['usergroupscount'] = $groupCountDetails;
+		else 
+			$dataArr['usergroupscount'] = 0;
+
+		if ($dataArr['userprofiledetails']->user_status == "live") 
+			$dataArr['confirmedemail'] = "yes";
+		else
+			$dataArr['confirmedemail'] = "no";
+
+		return $dataArr;
 	}
 	
 	public function make_url_friendly($string){

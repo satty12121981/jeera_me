@@ -21,7 +21,7 @@ class BcryptDbAdapter extends DbTable
         $dbSelect = clone $this->getDbSelect();
         $dbSelect->from($this->tableName)
             ->columns(array('*'))
-			->where(new SqlOp('user_status', '=', "live"))
+			//->where(new SqlOp('user_status', '=', "live"))
             ->where(new SqlOp($this->identityColumn, '=', $this->identity));
 
         return $dbSelect;

@@ -281,7 +281,7 @@ class IndexController extends AbstractActionController
 				->setCredential($postedValues['password']);
 	
 			$result = $authAdapter->authenticate();
-						
+
 			if (!$result->isValid()) {
 				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
 				if (empty($user_details)) {
@@ -290,15 +290,12 @@ class IndexController extends AbstractActionController
 					echo json_encode($dataArr);
 					exit;
 				} else {
-					$set_secretcode = $this->updateAccessToken($user_details->user_email,$user_details->user_id);
-					$dataArr = $this->getAllUserRelatedDetails($user_details->user_id,$set_secretcode);
+					$dataArr[0]['flag'] = "Failure";
+					$dataArr[0]['message'] = "Email or Password is wrong.";
 					echo json_encode($dataArr);
 					exit;
 				}
 			} else {
-				$auth = new AuthenticationService();
-				$storage = $auth->getStorage();
-				$storage->write($authAdapter->getResultRowObject(null,'user_password'));
 				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
 				$set_secretcode = $this->updateAccessToken($postedValues['email'],$user_details->user_id);
 				$dataArr = $this->getAllUserRelatedDetails($user_details->user_id,$set_secretcode);

@@ -75,37 +75,52 @@ class IndexController extends AbstractActionController
 			$postedValues = $this->getRequest()->getPost();
 			$str = $this->getRequest()->getContent();
 
-			if ((!isset($postedValues['name'])) || ($postedValues['name'] == '')) {
+			if ((!isset($postedValues['name'])) || (trim($postedValues['name']) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Name is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			if ((!isset($postedValues['email'])) || ($postedValues['email'] == '')) {
+
+			if ((!isset($postedValues['email'])) || (trim($postedValues['email']) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Email is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			if ((!isset($postedValues['password'])) || ($postedValues['password'] == '')) {
+
+			if(!filter_var(trim($postedValues['email']), FILTER_VALIDATE_EMAIL)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Invalid EmailID.";
+				echo json_encode($dataArr);
+				exit;
+			}
+
+			if ((!isset($postedValues['password'])) || (trim($postedValues['password']) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Password is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			if ((!isset($postedValues['country_id'])) || ($postedValues['country_id'] == '')) {
+			if ((!isset($postedValues['country_id'])) || (trim($postedValues['country_id']) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Country is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			if ((!isset($postedValues['city_id'])) || ($postedValues['city_id'] == '')) {
+			if ((!isset($postedValues['city_id'])) || (trim($postedValues['city_id']) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "City is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
+			$password = strip_tags($postedValues['password']);
+			$password = trim($password);
+			$email = strip_tags($postedValues['email']);
+			$email = trim($email);
+			$name = strip_tags($postedValues['name']);
+			$name = trim($name);
+			$user_details = $this->getUserTable()->getUserFromEmail(trim($email));
 			if ($user_details) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Email id already registered with us.";
@@ -113,16 +128,10 @@ class IndexController extends AbstractActionController
 				exit;
 			}
 			$bcrypt = new Bcrypt();
-			$password = strip_tags($postedValues['password']);
-			$password = trim($password);
-			$email = strip_tags($postedValues['email']);
-			$email = trim($email);
-			$name = strip_tags($postedValues['name']);
-			$name = trim($name);
 			$data['user_password'] = $bcrypt->create($password);
 			$user_verification_key = md5('enckey'.rand().time());
 			$data['user_verification_key'] = $user_verification_key;
-			$data['user_profile_name'] = $this->make_url_friendly($postedValues['name']);
+			$data['user_profile_name'] = $this->make_url_friendly($name);
 			$data['user_email'] = $email;
 			$data['user_given_name'] = $name;
 			$data['user_status'] = "not activated";
@@ -133,7 +142,7 @@ class IndexController extends AbstractActionController
 			$uniqueToken = $user_id."#".uniqid();
 			$encodedUniqToken = base64_encode($uniqueToken);
 			$data['user_accessToken'] = $encodedUniqToken;
-			$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
+			$user_details = $this->getUserTable()->getUserFromEmail($email);
 			$this->getUserTable()->updateUser($data,$user_details->user_id);
 			if($insertedUserId){
 				$profile_data['user_profile_user_id'] = $insertedUserId;
@@ -143,7 +152,7 @@ class IndexController extends AbstractActionController
 				$userProfile = new UserProfile();
 				$userProfile->exchangeArray($profile_data);
 				$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
-				//$this->sendVerificationEmail($user_verification_key,$insertedUserId,$data['user_email']);
+				$this->sendVerificationEmail($user_verification_key,$insertedUserId,$data['user_email']);
 				$dataArr = $this->getAllUserRelatedDetails($user_details->user_id,$data['user_accessToken']);
 				echo json_encode($dataArr);
 				exit;
@@ -255,18 +264,30 @@ class IndexController extends AbstractActionController
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
-			if ((!isset($postedValues['email'])) || ($postedValues['email'] == '')) {
+			$password = strip_tags($postedValues['password']);
+			$password = trim($password);
+			$email = strip_tags($postedValues['email']);
+			$email = trim($email);
+
+			if ((!isset($email)) || ($email == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Email is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			if ((!isset($postedValues['password'])) || ($postedValues['password'] == '')) {
+			if(!filter_var($email, FILTER_VALIDATE_EMAIL)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Invalid EmailID.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			if ((!isset($password)) || ($password == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Password is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
+
 			$dbAdapter = $this->getServiceLocator()->get('Zend\Db\Adapter\Adapter');
 	
 			$authAdapter = new AuthAdapter($dbAdapter);
@@ -277,13 +298,13 @@ class IndexController extends AbstractActionController
 				->setCredentialColumn('user_password');					
 	
 			$authAdapter
-				->setIdentity(addslashes($postedValues['email']))
-				->setCredential($postedValues['password']);
+				->setIdentity(addslashes($email))
+				->setCredential($password);
 	
 			$result = $authAdapter->authenticate();
 
 			if (!$result->isValid()) {
-				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
+				$user_details = $this->getUserTable()->getUserFromEmail($email);
 				if (empty($user_details)) {
 					$dataArr[0]['flag'] = "Failure";
 					$dataArr[0]['message'] = "Email not exists.";
@@ -296,8 +317,8 @@ class IndexController extends AbstractActionController
 					exit;
 				}
 			} else {
-				$user_details = $this->getUserTable()->getUserFromEmail($postedValues['email']);
-				$set_secretcode = $this->updateAccessToken($postedValues['email'],$user_details->user_id);
+				$user_details = $this->getUserTable()->getUserFromEmail($email);
+				$set_secretcode = $this->updateAccessToken($email,$user_details->user_id);
 				$dataArr = $this->getAllUserRelatedDetails($user_details->user_id,$set_secretcode);
 				echo json_encode($dataArr);
 				exit;

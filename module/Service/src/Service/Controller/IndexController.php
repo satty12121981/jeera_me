@@ -631,28 +631,45 @@ class IndexController extends AbstractActionController
 				$moveuserfriends[] = $swapuserfriends;
 			}
 		}
-
-		$dataArr['flag'] = "Success";
-		$dataArr['accesstoken'] = $set_secretcode;
-		$dataArr['userfriends'] = $moveuserfriends;
-		$dataArr['userinterests'] = $swapusertags;
-		$dataArr['userprofiledetails'] = $profileDetails;
-
-		if (!empty($dataArr['userprofiledetails']->profile_photo))
-			$dataArr['userprofiledetails']->profile_photo = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$dataArr['userprofiledetails']->profile_photo;
-		else if(isset($dataArr['userprofiledetails']->user_fbid) && !empty($dataArr['userprofiledetails']->user_fbid))
-			$dataArr['userprofiledetails']->profile_photo = 'http://graph.facebook.com/'.$dataArr['userprofiledetails']->user_fbid.'/picture?type=normal';
+		$profile_photo = '';
+		if (!empty($profileDetails->profile_photo))
+			$profile_photo = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$profileDetails->profile_photo;
+		else if(isset($profileDetails->user_fbid) && !empty($profileDetails->user_fbid))
+			$profile_photo = 'http://graph.facebook.com/'.$profileDetails->user_fbid.'/picture?type=normal';
 		else
-			$dataArr['userprofiledetails']->profile_photo = "";
-		if (!empty($groupCountDetails))
-			$dataArr['usergroupscount'] = $groupCountDetails;
+			$profile_photo = "";
+		$userprofileDetails[0] = array('user_id'=>$profileDetails->user_id,
+									'user_given_name'=>$profileDetails->user_given_name,									 
+									'user_profile_name'=>$profileDetails->user_profile_name,
+									'user_email'=>$profileDetails->user_email,
+									'user_status'=>$profileDetails->user_status,
+									'user_fbid'=>$profileDetails->user_fbid,
+									'user_profile_about_me'=>$profileDetails->user_profile_about_me,
+									'user_profile_current_location'=>$profileDetails->user_profile_about_me,
+									'user_profile_phone'=>$profileDetails->user_profile_phone,
+									'country_title'=>$profileDetails->country_title,
+									'country_code'=>$profileDetails->country_code,
+									'country_id'=>$profileDetails->country_id,
+									'city_name'=>$profileDetails->city_name,
+									'city_id'=>$profileDetails->city_id,
+									'profile_photo'=>$profile_photo,
+									);
+		$dataArr[0]['flag'] = "Success";
+		$dataArr[0]['accesstoken'] = $set_secretcode;
+		$dataArr[0]['userfriends'] = $moveuserfriends;
+		$dataArr[0]['userinterests'] = $swapusertags;
+		$dataArr[0]['userprofiledetails'] = $userprofileDetails;
+
+		
+		if (!empty($groupCountDetails->group_count))
+			$dataArr[0]['usergroupscount'] = $groupCountDetails->group_count;
 		else 
-			$dataArr['usergroupscount'] = 0;
+			$dataArr[0]['usergroupscount'] = 0;
 
-		if ($dataArr['userprofiledetails']->user_status == "live") 
-			$dataArr['confirmedemail'] = "yes";
+		if ($profileDetails->user_status == "live") 
+			$dataArr[0]['confirmedemail'] = "yes";
 		else
-			$dataArr['confirmedemail'] = "no";
+			$dataArr[0]['confirmedemail'] = "no";
 
 		return $dataArr;
 	}

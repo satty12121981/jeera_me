@@ -107,5 +107,19 @@ class UserProfileTable extends AbstractTableGateway
     }  	
 	public function updateUserProfile($data,$user_id){
 		$this->update($data, array('user_profile_user_id' => $user_id));
+	}
+	public function checkCurrentPassword($password,$user_id){ 
+		$select = new select();
+		$select->from('y2m_user')
+				->columns(array('user_id'))
+				->where(array('user_password'=>$password))
+				->where(array('user_id'=>$user_id));
+		$statement = $this->adapter->createStatement();
+		$select->prepareStatement($this->adapter, $statement);
+		echo $select->getSqlString();exit;
+		$resultSet = new ResultSet();
+		$resultSet->initialize($statement->execute());
+		$row =  $resultSet->current();	
+		if(!empty($row))return true;else return false;
 	}	
 }

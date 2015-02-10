@@ -101,7 +101,8 @@ return array(
     
     'controllers' => array(
         'invokables' => array(
-            'Service\Controller\Index' => 'Service\Controller\IndexController',         
+            'Service\Controller\Index' => 'Service\Controller\IndexController',
+            'Service\Controller\Groups' => 'Service\Controller\GroupsController',          
         ),
     ),   
     

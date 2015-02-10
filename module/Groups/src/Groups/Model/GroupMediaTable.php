@@ -27,8 +27,9 @@ class GroupMediaTable extends AbstractTableGateway
 			'media_type'            => $objGroupMedia->media_type,
 			'media_content'         => $objGroupMedia->media_content,
 			'media_caption'         => $objGroupMedia->media_caption,
-			'media_added_ip'        =>  $ip,
-			'media_status'          => $objGroupMedia->media_status
+			'media_added_ip'        => $ip,
+			'media_status'          => $objGroupMedia->media_status,
+			'media_added_date'		=> date("Y-m-d H:i:s"),
 		);
         if($group_media_id != ''){
 			$this->update($data, array('group_media_id' => $group_media_id));
@@ -54,7 +55,7 @@ class GroupMediaTable extends AbstractTableGateway
 		$select = new Select;
 		$select->from('y2m_group_media')
 			   ->join("y2m_group","y2m_group.group_id = y2m_group_media.media_added_group_id",array("group_title","group_seo_title","group_id"))
-			   ->join("y2m_user","y2m_user.user_id = y2m_group_media.media_added_user_id",array("user_id","user_given_name","user_first_name","user_last_name","user_profile_name"))
+			   ->join("y2m_user","y2m_user.user_id = y2m_group_media.media_added_user_id",array("user_id","user_given_name","user_first_name","user_last_name","user_profile_name","user_fbid"))
 			   ->join('y2m_user_profile_photo','y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id',array('profile_photo'),'left')
 			   ->where(array("group_media_id"=>$media_id,"media_status"=>"active"));
 		$statement = $this->adapter->createStatement();

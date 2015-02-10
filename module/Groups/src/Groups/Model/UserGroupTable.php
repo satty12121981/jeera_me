@@ -441,7 +441,7 @@ class UserGroupTable extends AbstractTableGateway
 	public function getAllActiveMembersExceptMeAction($group_id,$user_id){
 		$select = new Select;
 		$select->from('y2m_user_group')
-			   ->join('y2m_user','y2m_user_group.user_group_user_id = y2m_user.user_id',array('user_id','user_given_name','user_first_name','user_last_name'))
+			   ->join('y2m_user','y2m_user_group.user_group_user_id = y2m_user.user_id',array('user_id','user_given_name','user_first_name','user_last_name','user_fbid'))
 			   ->join('y2m_user_profile_photo','y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id',array('profile_photo'),'left')
 			   ->where("y2m_user_group.user_group_group_id=".$group_id." AND y2m_user_group.user_group_status = 'available'")
 			   ->where("y2m_user_group.user_group_user_id!= ".$user_id);

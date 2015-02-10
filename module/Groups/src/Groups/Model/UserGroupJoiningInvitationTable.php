@@ -40,4 +40,18 @@ class UserGroupJoiningInvitationTable extends AbstractTableGateway
         }
 		return true;
     }
+	public function checkInvited($user_id,$group_id){
+		$select = new Select;
+		$select->from('y2m_user_group_joining_invitation')		 		 
+			->where(array('y2m_user_group_joining_invitation.user_group_joining_invitation_group_id' => "$group_id"));
+		$select->where(array("y2m_user_group_joining_invitation.user_group_joining_invitation_receiver_id"=>$user_id));
+		$select->where(array("y2m_user_group_joining_invitation.user_group_joining_invitation_status"=>'active'));
+			 
+		$statement = $this->adapter->createStatement();
+		$select->prepareStatement($this->adapter, $statement);
+		//echo $select->getSqlString();exit;
+		$resultSet = new ResultSet();
+		$resultSet->initialize($statement->execute());	  
+	  	return $resultSet->current();	
+	}	 
 }

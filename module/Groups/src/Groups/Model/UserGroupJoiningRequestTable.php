@@ -150,4 +150,19 @@ class UserGroupJoiningRequestTable extends AbstractTableGateway
 		$resultSet->initialize($statement->execute());	
 		return $resultSet->toArray();
 	 }
+	 public function checkActiveRequestExist($planet_id,$user){
+		$select = new Select;
+		$select->from('y2m_user_group_joining_request')
+			->join("y2m_user","y2m_user.user_id = y2m_user_group_joining_request.user_group_joining_request_user_id",array("user_id"=>"user_id","user_given_name"=>"user_given_name"))			 
+			->where(array('y2m_user_group_joining_request.user_group_joining_request_group_id' => "$planet_id"));
+			$select->where(array("y2m_user_group_joining_request.user_group_joining_request_user_id"=>$user));
+			$select->where(array("y2m_user_group_joining_request.user_group_joining_request_status"=>'active'));
+			 
+		$statement = $this->adapter->createStatement();
+		$select->prepareStatement($this->adapter, $statement);
+		//echo $select->getSqlString();exit;
+		$resultSet = new ResultSet();
+		$resultSet->initialize($statement->execute());	  
+	  	return $resultSet->current();
+	 }
 }

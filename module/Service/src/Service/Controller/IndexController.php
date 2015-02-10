@@ -522,10 +522,8 @@ class IndexController extends AbstractActionController
 		$textPart = new MimePart($body);
 		$textPart->type = "text/plain";
 
-
 		$body = new MimeMessage();
 		$body->setParts(array($textPart, $htmlPart));
-
 
 		$message = new Mail\Message();
 		$message->setFrom('admin@jeera.com');
@@ -556,7 +554,6 @@ class IndexController extends AbstractActionController
 
 		$textPart = new MimePart($body);
 		$textPart->type = "text/plain";
-
 
 		$body = new MimeMessage();
 		$body->setParts(array($textPart, $htmlPart));

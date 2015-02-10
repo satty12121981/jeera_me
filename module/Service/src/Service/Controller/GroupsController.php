@@ -39,7 +39,7 @@ use Zend\Mime\Part as MimePart;
 
 use Zend\Authentication\Storage\Session;
 
-class IndexController extends AbstractActionController
+class GroupsController extends AbstractActionController
 {
     public $form_error ;
 	protected $userTable;
@@ -52,33 +52,103 @@ class IndexController extends AbstractActionController
         $this->flagSuccess = "Success";
 		$this->flagError = "Failure";
 	}
-	
-	public function groupspostscommentsAction(){
+
+	public function groupslistAction(){
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
 			$str = $this->getRequest()->getContent();
+			$offset = trim($postedValues['nparam']);
+			$limit = trim($postedValues['countparam']);
+			$user_id = trim($postedValues['userid']);
 
-			if ((!isset($postedValues['page'])) || (trim($postedValues['page']) == '')) {
-								
+			if ((!isset($user_id)) || (trim($user_id) == '')) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
 			}
 
-			if ((!isset($postedValues['count'])) || (trim($postedValues['count']) == '')) {
-				
+			if (isset($limit) && !is_numeric($limit)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a valid Count Param.";
+				echo json_encode($dataArr);
+				exit;		
 			}
 
-			if ((!isset($postedValues['userid'])) || (trim($postedValues['userid']) == '')) {
-				
+			if (isset($offset) && !is_numeric($offset)) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a valid N Param.";
+				echo json_encode($dataArr);
+				exit;
 			}
-
-			$groupsList= $this->getGroupsTable()->generalGroupList($limit,$offset,$user=0);
 			
-			$user_feeds_list = $this->getGroupsTable()->getNewsFeeds($user_id,$type,$group_id,$activity,$limit,$offset);
-
+			$dataArr[0]['usergroups'] = $this->getGroupsTable()->generalGroupList((int) $limit,(int) $offset,$user_id);
+			echo json_encode($dataArr);
+			exit;
 		}
-			
     }
-   
+	
+	public function groupdetailsAction(){
+		$request = $this->getRequest();
+		if($this->getRequest()->getMethod() == 'POST') {
+			$postedValues = $this->getRequest()->getPost();
+			$str = $this->getRequest()->getContent();
+			$offset = trim($postedValues['nparam']);
+			$limit = trim($postedValues['countparam']);
+			$type = trim($postedValues['type']);
+			$activity = trim($postedValues['activity']);
+			
+			$user_id = trim($postedValues['userid']);
+			$group_id = trim($postedValues['groupid']);
+
+			if ((!isset($user_id)) || (trim($user_id) == '')) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
+			}
+
+			if (isset($user_id) && !is_numeric($user_id)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a valid UserId.";
+				echo json_encode($dataArr);
+				exit;		
+			}
+
+			if ((!isset($group_id)) || (trim($group_id) == '')) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
+			}
+
+			if (isset($group_id) && !is_numeric($group_id)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a valid GroupId.";
+				echo json_encode($dataArr);
+				exit;		
+			}
+
+			if (isset($limit) && !is_numeric($limit)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a valid Count Param.";
+				echo json_encode($dataArr);
+				exit;		
+			}
+
+			if (isset($offset) && !is_numeric($offset)) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a valid N Param.";
+				echo json_encode($dataArr);
+				exit;
+			}
+						
+			$dataArr[0]['userfeeds'] = $this->getGroupsTable()->getNewsFeeds($user_id,$type,$group_id,$activity,(int) $limit,(int) $offset);
+			echo json_encode($dataArr);
+			exit;
+		}
+    }
 
 	public function getUserTable(){
 		$sm = $this->getServiceLocator();

@@ -119,8 +119,7 @@ class UserTable extends AbstractTableGateway
 		//exit;
 		$resultSet = new ResultSet();
 		$resultSet->initialize($statement->execute());
-		return $resultSet-
->current();
+		return $resultSet->current();
 	}
 
 	public function checkEmailExists($email,$user_id){       
@@ -177,6 +176,18 @@ class UserTable extends AbstractTableGateway
 		$statement = $this->adapter->createStatement();
 		$select->prepareStatement($this->adapter, $statement);
 		// echo $select->getSqlString();die();
+		$resultSet = new ResultSet();
+		$resultSet->initialize($statement->execute());	  
+		return $resultSet->current(); 
+	}
+	public function getUserByAccessToken($acctoken){
+		$select = new Select;
+		$select->from("y2m_user")
+			->columns(array('*'))
+			->where(array("user_accessToken"=>$acctoken));
+		$statement = $this->adapter->createStatement();
+		$select->prepareStatement($this->adapter, $statement);
+		//echo $select->getSqlString();die();
 		$resultSet = new ResultSet();
 		$resultSet->initialize($statement->execute());	  
 		return $resultSet->current(); 

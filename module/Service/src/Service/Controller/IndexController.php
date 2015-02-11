@@ -618,22 +618,22 @@ class IndexController extends AbstractActionController
 					'friend_fbid' => $friend->user_fbid,
 					);
 				if (isset($friend_profile_pic) && !empty($friend_profile_pic->biopic)) 
-					$swapuserfriends['friend_pictureurl'] = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$friend->friend_id.'/'.$friend_profile_pic->biopic;
+					$swapuserfriends['friend_pictureurl'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$friend->friend_id.'/'.$friend_profile_pic->biopic;
 				else if(isset($friend->user_fbid) && !empty($friend->user_fbid))
 					$swapuserfriends['friend_pictureurl'] = 'http://graph.facebook.com/'.$friend->user_fbid.'/picture?type=normal';
 				else  
-					$swapuserfriends['friend_pictureurl'] = 'https://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
+					$swapuserfriends['friend_pictureurl'] = 'http://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
 				$moveuserfriends[] = $swapuserfriends;
 			}
 		}
 		
 		$profile_photo = '';
 		if (!empty($profileDetails->profile_photo))
-			$profile_photo = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$profileDetails->profile_photo;
+			$profile_photo = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$profileDetails->profile_photo;
 		else if(isset($profileDetails->user_fbid) && !empty($profileDetails->user_fbid))
 			$profile_photo = 'http://graph.facebook.com/'.$profileDetails->user_fbid.'/picture?type=normal';
 		else
-			$profile_photo = 'https://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
+			$profile_photo = 'http://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
 
 		$userprofileDetails[0] = array('user_id'=>$profileDetails->user_id,
 									'user_given_name'=>$profileDetails->user_given_name,									 

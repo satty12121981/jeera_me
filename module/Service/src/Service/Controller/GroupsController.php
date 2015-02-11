@@ -10,32 +10,10 @@
 namespace Service\Controller;
 
 use Zend\Mvc\Controller\AbstractActionController;
-
 use Zend\View\Model\ViewModel;
-
 use Zend\View\Model\JsonModel;
-
 use Zend\View\Renderer\PhpRenderer;
-
 use \Exception;
-
-use Zend\Crypt\BlockCipher;
-
-use Zend\Crypt\Password\Bcrypt;	
-
-use User\Auth\BcryptDbAdapter as AuthAdapter;
-
-use Zend\Session\Container;     
-
-use Zend\Authentication\AuthenticationService;
-
-use Zend\Mail;
-
-use Zend\Mime\Message as MimeMessage;
-
-use Zend\Mime\Part as MimePart;
-
-use Zend\Authentication\Storage\Session;
 
 class GroupsController extends AbstractActionController
 {
@@ -66,38 +44,39 @@ class GroupsController extends AbstractActionController
 			$str = $this->getRequest()->getContent();
 			$offset = trim($postedValues['nparam']);
 			$limit = trim($postedValues['countparam']);
-			$user_id = trim($postedValues['userid']);
-
-			if ((!isset($user_id)) || (trim($user_id) == '')) {
+			$accToken = strip_tags(trim($postedValues['accesstoken']));
+			if ((!isset($accToken)) || (trim($accToken) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Request Not Authorised.";
 				echo json_encode($dataArr);
 				exit;
 			}
-
 			if (isset($limit) && !is_numeric($limit)) {
  				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Please input a valid Count Param.";
 				echo json_encode($dataArr);
 				exit;		
 			}
-
 			if (isset($offset) && !is_numeric($offset)) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Please input a valid N Param.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			
-			$groupsList = $this->getGroupsTable()->generalGroupList((int) $limit,(int) $offset,$user_id);
-									
+			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
+			if (empty($user_details)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Invalid Access Token.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			$groupsList = $this->getGroupsTable()->generalGroupList((int) $limit,(int) $offset,$user_details->user_id);
 			foreach($groupsList as $list){
-
 				if (!empty($list['group_photo_photo']))
-					$list['group_photo_photo'] = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].'/'.$list['group_id'].'/medium/'.$list['group_photo_photo'];
+					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
 				
 				else
-					$list['group_photo_photo'] = 'https://www.y2m.ae/development/jeera_me/public/images/group-img_def.jpg';
+					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/images/group-img_def.jpg';
 
 				$temp[]=$list;
 			}
@@ -127,223 +106,207 @@ class GroupsController extends AbstractActionController
 				echo json_encode($dataArr);
 				exit;
 			}
-
 			if (isset($user_id) && !is_numeric($user_id)) {
  				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Please input a valid UserId.";
 				echo json_encode($dataArr);
 				exit;		
 			}
-
 			if ((!isset($group_id)) || (trim($group_id) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Request Not Authorised.";
 				echo json_encode($dataArr);
 				exit;
 			}
-
 			if (isset($group_id) && !is_numeric($group_id)) {
  				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Please input a Valid GroupId.";
 				echo json_encode($dataArr);
 				exit;		
 			}
-
 			if (isset($limit) && !is_numeric($limit)) {
  				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Please input a Valid Count Param.";
 				echo json_encode($dataArr);
 				exit;		
 			}
-
 			if (isset($offset) && !is_numeric($offset)) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Please input a Valid N Param.";
 				echo json_encode($dataArr);
 				exit;
 			}
-						
 			$newsfeedsList = $this->getGroupsTable()->getNewsFeeds($user_id,$type,$group_id,$activity,(int) $limit,(int) $offset);
-
 			foreach($newsfeedsList as $list){
-				if (!empty($list['group_photo_photo']))
-					$list['group_photo_photo'] = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].'/'.$list['group_id'].'/medium/'.$list['group_photo_photo'];
-				
-				else
-					$list['group_photo_photo'] = 'https://www.y2m.ae/development/jeera_me/public/images/group-img_def.jpg';
-						switch($list['type']){
-							case "New Activity":
-							$activity_details = array();
-							$activity = $this->getActivityTable()->getActivityForFeed($list['event_id'],$user_id);
-							$SystemTypeData   = $this->getGroupsTable()->fetchSystemType("Activity");
-							$like_details     = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
-							$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
-							$str_liked_users  = '';
-							$arr_likedUsers = array(); 
-							if(!empty($like_details)&&isset($like_details['likes_counts'])){  
-								$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-								
-								if($like_details['is_liked']==1){
-									$arr_likedUsers[] = 'you';
-								}
-								if($like_details['likes_counts']>0&&!empty($liked_users)){
-									foreach($liked_users as $likeuser){
-										$arr_likedUsers[] = $likeuser['user_given_name'];
-									}
-								}
-								 
-							}
-							$rsvp_count = $this->getActivityRsvpTable()->getCountOfAllRSVPuser($activity->group_activity_id)->rsvp_count;
-							$attending_users = array();
-							if($rsvp_count>0){
-								$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
-							}
-							$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
-							$activity_details = array(
-													"group_activity_id" => $activity->group_activity_id,
-													"group_activity_title" => $activity->group_activity_title,
-													"group_activity_location" => $activity->group_activity_location,
-													"group_activity_location_lat" => $activity->group_activity_location_lat,
-													"group_activity_location_lng" => $activity->group_activity_location_lng,
-													"group_activity_content" => $activity->group_activity_content,
-													"group_activity_start_timestamp" => date("M d,Y H:s a",strtotime($activity->group_activity_start_timestamp)),												 
-													"user_given_name" => $list['user_given_name'],
-													"group_title" =>$list['group_title'],
-													"group_seo_title" =>$list['group_seo_title'],
-													"group_id" =>$list['group_id'],	
-													"user_id" => $list['user_id'],
-													"user_profile_name" => $list['user_profile_name'],												 
-													"profile_photo" => $profile_photo,	
-													"user_fbid" => $list['user_fbid'],													
-													"like_count"	=>$like_details['likes_counts'],
-													"is_liked"	=>$like_details['is_liked'],
-													"comment_counts"	=>$comment_details['comment_counts'],
-													"is_commented"	=>$comment_details['is_commented'],
-													"liked_users"	=>$arr_likedUsers,
-													"rsvp_count" =>($activity->rsvp_count)?$activity->rsvp_count:0,
-													"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
-													"is_going"=>$activity->is_going,
-													"attending_users" =>$attending_users,
-													);
-							$feeds[] = array('content' => $activity_details,
-											'type'=>$list['type'],
-											'time'=>$this->timeAgo($list['update_time']),
-							); 							
-							break;
-							case "New Status":
-								$discussion_details = array();
-								$discussion = $this->getDiscussionTable()->getDiscussionForFeed($list['event_id']);
-								$SystemTypeData = $this->getGroupsTable()->fetchSystemType("Discussion");
-								$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
-								$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
-								$str_liked_users = '';
-								$arr_likedUsers = array();
-								if(!empty($like_details)&&isset($like_details['likes_counts'])){  
-									$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-									
-									if($like_details['is_liked']==1){
-										$arr_likedUsers[] = 'you';
-									}
-									if($like_details['likes_counts']>0&&!empty($liked_users)){
-										foreach($liked_users as $likeuser){
-											$arr_likedUsers[] = $likeuser['user_given_name'];
-										}
-									}
-									 
-								}
-								$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
-								$discussion_details = array(
-													"group_discussion_id" => $discussion->group_discussion_id,
-													"group_discussion_content" => $discussion->group_discussion_content,
-													"group_title" =>$list['group_title'],
-													"group_seo_title" =>$list['group_seo_title'],
-													"group_id" =>$list['group_id'],												
-													"user_given_name" => $list['user_given_name'],
-													"user_id" => $list['user_id'],
-													"user_profile_name" => $list['user_profile_name'],												 
-													"profile_photo" => $profile_photo,
-													"user_fbid" => $list['user_fbid'],
-													"like_count"	=>$like_details['likes_counts'],
-													"is_liked"	=>$like_details['is_liked'],
-													"liked_users"	=>$arr_likedUsers,
-													"comment_counts"	=>$comment_details['comment_counts'],
-													"is_commented"	=>$comment_details['is_commented'],
-													);
-								$feeds[] = array('content' => $discussion_details,
-												'type'=>$list['type'],
-												'time'=>$this->timeAgo($list['update_time']),
-								); 
-							break;
-							case "New Media":
-								$media_details = array();
-								$media = $this->getGroupMediaTable()->getMediaForFeed($list['event_id']);
-								$video_id  = '';
-								if($media->media_type == 'video')
-								$video_id  = $this->get_youtube_id_from_url($media->media_content);
-								$SystemTypeData = $this->getGroupsTable()->fetchSystemType("Media");
-								$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
-								$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
-								$str_liked_users = '';
-								$arr_likedUsers = array();
-								if(!empty($like_details)&&isset($like_details['likes_counts'])){  
-									$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-									
-									if($like_details['is_liked']==1){
-										$arr_likedUsers[] = 'you';
-									}
-									if($like_details['likes_counts']>0&&!empty($liked_users)){
-										foreach($liked_users as $likeuser){
-											$arr_likedUsers[] = $likeuser['user_given_name'];
-										}
-									}
-									 
-								}
-								if (!empty($media->media_content))
-								$media->media_content = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].'/'.$list['group_id'].'/media/medium/'.$media->media_content;
-								$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
-								$media_details = array(
-													"group_media_id" => $media->group_media_id,
-													"media_type" => $media->media_type,
-													"media_content" => $media->media_content,
-													"media_caption" => $media->media_caption,
-													"video_id" => $video_id,
-													"group_title" =>$list['group_title'],
-													"group_seo_title" =>$list['group_seo_title'],	
-													"group_id" =>$list['group_id'],													
-													"user_given_name" => $list['user_given_name'],
-													"user_id" => $list['user_id'],
-													"user_profile_name" => $list['user_profile_name'],												 
-													"profile_photo" => $profile_photo,
-													"user_fbid" => $list['user_fbid'],
-													"like_count"	=>$like_details['likes_counts'],
-													"is_liked"	=>$like_details['is_liked'],	
-													"liked_users"	=>$arr_likedUsers,	
-													"comment_counts"	=>$comment_details['comment_counts'],
-													"is_commented"	=>$comment_details['is_commented'],												
-													);
-								$feeds[] = array('content' => $media_details,
-												'type'=>$list['type'],
-												'time'=>$this->timeAgo($list['update_time']),
-								); 
-							break;
+				switch($list['type']){
+					case "New Activity":
+					$activity_details = array();
+					$activity = $this->getActivityTable()->getActivityForFeed($list['event_id'],$user_id);
+					$SystemTypeData   = $this->getGroupsTable()->fetchSystemType("Activity");
+					$like_details     = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
+					$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
+					$str_liked_users  = '';
+					$arr_likedUsers = array(); 
+					if(!empty($like_details)&&isset($like_details['likes_counts'])){  
+						$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
+						
+						if($like_details['is_liked']==1){
+							$arr_likedUsers[] = 'you';
 						}
-					} 
+						if($like_details['likes_counts']>0&&!empty($liked_users)){
+							foreach($liked_users as $likeuser){
+								$arr_likedUsers[] = $likeuser['user_given_name'];
+							}
+						}
+						 
+					}
+					$rsvp_count = $this->getActivityRsvpTable()->getCountOfAllRSVPuser($activity->group_activity_id)->rsvp_count;
+					$attending_users = array();
+					if($rsvp_count>0){
+						$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
+					}
+					$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
+					$activity_details = array(
+											"group_activity_id" => $activity->group_activity_id,
+											"group_activity_title" => $activity->group_activity_title,
+											"group_activity_location" => $activity->group_activity_location,
+											"group_activity_location_lat" => $activity->group_activity_location_lat,
+											"group_activity_location_lng" => $activity->group_activity_location_lng,
+											"group_activity_content" => $activity->group_activity_content,
+											"group_activity_start_timestamp" => date("M d,Y H:s a",strtotime($activity->group_activity_start_timestamp)),												 
+											"user_given_name" => $list['user_given_name'],
+											"group_title" =>$list['group_title'],
+											"group_seo_title" =>$list['group_seo_title'],
+											"group_id" =>$list['group_id'],	
+											"user_id" => $list['user_id'],
+											"user_profile_name" => $list['user_profile_name'],												 
+											"profile_photo" => $profile_photo,	
+											"user_fbid" => $list['user_fbid'],													
+											"like_count"	=>$like_details['likes_counts'],
+											"is_liked"	=>$like_details['is_liked'],
+											"comment_counts"	=>$comment_details['comment_counts'],
+											"is_commented"	=>$comment_details['is_commented'],
+											"liked_users"	=>$arr_likedUsers,
+											"rsvp_count" =>($activity->rsvp_count)?$activity->rsvp_count:0,
+											"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
+											"is_going"=>$activity->is_going,
+											"attending_users" =>$attending_users,
+											);
+					$feeds[] = array('content' => $activity_details,
+									'type'=>$list['type'],
+									'time'=>$this->timeAgo($list['update_time']),
+					); 							
+					break;
+					case "New Status":
+						$discussion_details = array();
+						$discussion = $this->getDiscussionTable()->getDiscussionForFeed($list['event_id']);
+						$SystemTypeData = $this->getGroupsTable()->fetchSystemType("Discussion");
+						$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
+						$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
+						$str_liked_users = '';
+						$arr_likedUsers = array();
+						if(!empty($like_details)&&isset($like_details['likes_counts'])){  
+							$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
+							
+							if($like_details['is_liked']==1){
+								$arr_likedUsers[] = 'you';
+							}
+							if($like_details['likes_counts']>0&&!empty($liked_users)){
+								foreach($liked_users as $likeuser){
+									$arr_likedUsers[] = $likeuser['user_given_name'];
+								}
+							}
+						}
+						$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
+						$discussion_details = array(
+											"group_discussion_id" => $discussion->group_discussion_id,
+											"group_discussion_content" => $discussion->group_discussion_content,
+											"group_title" =>$list['group_title'],
+											"group_seo_title" =>$list['group_seo_title'],
+											"group_id" =>$list['group_id'],												
+											"user_given_name" => $list['user_given_name'],
+											"user_id" => $list['user_id'],
+											"user_profile_name" => $list['user_profile_name'],												 
+											"profile_photo" => $profile_photo,
+											"user_fbid" => $list['user_fbid'],
+											"like_count"	=>$like_details['likes_counts'],
+											"is_liked"	=>$like_details['is_liked'],
+											"liked_users"	=>$arr_likedUsers,
+											"comment_counts"	=>$comment_details['comment_counts'],
+											"is_commented"	=>$comment_details['is_commented'],
+											);
+						$feeds[] = array('content' => $discussion_details,
+										'type'=>$list['type'],
+										'time'=>$this->timeAgo($list['update_time']),
+						); 
+					break;
+					case "New Media":
+						$media_details = array();
+						$media = $this->getGroupMediaTable()->getMediaForFeed($list['event_id']);
+						$video_id  = '';
+						if($media->media_type == 'video')
+						$video_id  = $this->get_youtube_id_from_url($media->media_content);
+						$SystemTypeData = $this->getGroupsTable()->fetchSystemType("Media");
+						$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
+						$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
+						$str_liked_users = '';
+						$arr_likedUsers = array();
+						if(!empty($like_details)&&isset($like_details['likes_counts'])){  
+							$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
+							if($like_details['is_liked']==1){
+								$arr_likedUsers[] = 'you';
+							}
+							if($like_details['likes_counts']>0&&!empty($liked_users)){
+								foreach($liked_users as $likeuser){
+									$arr_likedUsers[] = $likeuser['user_given_name'];
+								}
+							}
+						}
+						if (!empty($media->media_content))
+							$media->media_content = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
+						$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
+						$media_details = array(
+											"group_media_id" => $media->group_media_id,
+											"media_type" => $media->media_type,
+											"media_content" => $media->media_content,
+											"media_caption" => $media->media_caption,
+											"video_id" => $video_id,
+											"group_title" =>$list['group_title'],
+											"group_seo_title" =>$list['group_seo_title'],	
+											"group_id" =>$list['group_id'],													
+											"user_given_name" => $list['user_given_name'],
+											"user_id" => $list['user_id'],
+											"user_profile_name" => $list['user_profile_name'],												 
+											"profile_photo" => $profile_photo,
+											"user_fbid" => $list['user_fbid'],
+											"like_count"	=>$like_details['likes_counts'],
+											"is_liked"	=>$like_details['is_liked'],	
+											"liked_users"	=>$arr_likedUsers,	
+											"comment_counts"	=>$comment_details['comment_counts'],
+											"is_commented"	=>$comment_details['is_commented'],												
+											);
+						$feeds[] = array('content' => $media_details,
+										'type'=>$list['type'],
+										'time'=>$this->timeAgo($list['update_time']),
+						); 
+					break;
+				}
+			} 
 			$dataArr[0]['groupposts'] = $feeds;
 			echo json_encode($dataArr);
 			exit;
 		}
     }
 
-
     public function manipulateProfilePic($user_id, $profile_photo = null, $fb_id = null){
     	$config = $this->getServiceLocator()->get('Config');
 		$return_photo = null;
 		if (!empty($profile_photo))
-			$return_photo = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$profile_photo;
+			$return_photo = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$profile_photo;
 		else if(isset($fb_id) && !empty($fb_id))
 			$return_photo = 'http://graph.facebook.com/'.$fb_id.'/picture?type=normal';
 		else
-			$return_photo = 'https://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
+			$return_photo = 'http://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
 		return $return_photo;
 
 	}

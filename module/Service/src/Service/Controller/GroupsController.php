@@ -96,21 +96,14 @@ class GroupsController extends AbstractActionController
 			$limit = trim($postedValues['countparam']);
 			$type = trim($postedValues['type']);
 			$activity = trim($postedValues['activity']);
-			
-			$user_id = trim($postedValues['userid']);
 			$group_id = trim($postedValues['groupid']);
+			$accToken = strip_tags(trim($postedValues['accesstoken']));
 
-			if ((!isset($user_id)) || (trim($user_id) == '')) {
+			if ((!isset($accToken)) || (trim($accToken) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Request Not Authorised.";
 				echo json_encode($dataArr);
 				exit;
-			}
-			if (isset($user_id) && !is_numeric($user_id)) {
- 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid UserId.";
-				echo json_encode($dataArr);
-				exit;		
 			}
 			if ((!isset($group_id)) || (trim($group_id) == '')) {
 				$dataArr[0]['flag'] = "Failure";
@@ -136,6 +129,8 @@ class GroupsController extends AbstractActionController
 				echo json_encode($dataArr);
 				exit;
 			}
+			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
+			$user_id = $user_details->user_id;
 			$newsfeedsList = $this->getGroupsTable()->getNewsFeeds($user_id,$type,$group_id,$activity,(int) $limit,(int) $offset);
 			foreach($newsfeedsList as $list){
 				switch($list['type']){

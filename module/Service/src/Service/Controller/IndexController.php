@@ -84,14 +84,14 @@ class IndexController extends AbstractActionController
 
 			if ((!isset($postedValues['email'])) || (trim($postedValues['email']) == '')) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Email is required.";
+				$dataArr[0]['message'] = "Email ID is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
 
 			if(!filter_var(trim($postedValues['email']), FILTER_VALIDATE_EMAIL)){
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Invalid EmailID.";
+				$dataArr[0]['message'] = "Invalid Email ID.";
 				echo json_encode($dataArr);
 				exit;
 			}
@@ -123,7 +123,7 @@ class IndexController extends AbstractActionController
 			$user_details = $this->getUserTable()->getUserFromEmail(trim($email));
 			if ($user_details) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Email id already registered with us.";
+				$dataArr[0]['message'] = "Email ID already registered with us.";
 				echo json_encode($dataArr);
 				exit;
 			}
@@ -158,7 +158,7 @@ class IndexController extends AbstractActionController
 				exit;
 			} else{
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Some error Occurred. Please try again.";
+				$dataArr[0]['message'] = "Some error occurred. Please try again.";
 				echo json_encode($dataArr);
 				exit;
 			} 
@@ -271,13 +271,13 @@ class IndexController extends AbstractActionController
 
 			if ((!isset($email)) || ($email == '')) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Email is required.";
+				$dataArr[0]['message'] = "Email ID is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
 			if(!filter_var($email, FILTER_VALIDATE_EMAIL)){
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Invalid EmailID.";
+				$dataArr[0]['message'] = "Invalid Email ID.";
 				echo json_encode($dataArr);
 				exit;
 			}
@@ -307,12 +307,12 @@ class IndexController extends AbstractActionController
 				$user_details = $this->getUserTable()->getUserFromEmail($email);
 				if (empty($user_details)) {
 					$dataArr[0]['flag'] = "Failure";
-					$dataArr[0]['message'] = "Email not exists.";
+					$dataArr[0]['message'] = "Email ID does not exists.";
 					echo json_encode($dataArr);
 					exit;
 				} else {
 					$dataArr[0]['flag'] = "Failure";
-					$dataArr[0]['message'] = "Email or Password is wrong.";
+					$dataArr[0]['message'] = "Email ID or Password is incorrect.";
 					echo json_encode($dataArr);
 					exit;
 				}
@@ -325,7 +325,7 @@ class IndexController extends AbstractActionController
 			}
 		} else {
 			$dataArr[0]['flag'] = "Failure";
-			$dataArr[0]['message'] = "Request not authorised.";
+			$dataArr[0]['message'] = "Request Not Authorised.";
 			echo json_encode($dataArr);
 			exit;
 		}
@@ -347,7 +347,7 @@ class IndexController extends AbstractActionController
 			$postedValues = $this->getRequest()->getPost();
 			if ((!isset($postedValues['email'])) || ($postedValues['email'] == '')) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "User-name is required.";
+				$dataArr[0]['message'] = "User Name is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
@@ -396,7 +396,7 @@ class IndexController extends AbstractActionController
 						$storage = $auth->getStorage();
 						$storage->write($authAdapter->getResultRowObject(null,'user_password'));
 						$dataArr[0]['flag'] = "Success";
-						$dataArr[0]['message'] = "Login successful.";
+						$dataArr[0]['message'] = "Login Successful.";
 						echo json_encode($dataArr);
 						exit; 
 					}
@@ -404,7 +404,7 @@ class IndexController extends AbstractActionController
 			}
 		} else {
 			$dataArr[0]['flag'] = "Failure";
-			$dataArr[0]['message'] = "Request not authorised.";
+			$dataArr[0]['message'] = "Request Not Authorised.";
 			echo json_encode($dataArr);
 			exit;
 		}
@@ -545,7 +545,6 @@ class IndexController extends AbstractActionController
 	}
 	
 	public function sendVerificationEmail($user_verification_key,$insertedUserId,$emailId){
-
 		$this->renderer = $this->getServiceLocator()->get('ViewRenderer');	 
 		$user_insertedUserId = md5(md5('userId~'.$insertedUserId));
 		$body = $this->renderer->render('user/email/emailVarification.phtml', array('user_verification_key'=>$user_verification_key,'user_insertedUserId'=>$user_insertedUserId));
@@ -573,7 +572,6 @@ class IndexController extends AbstractActionController
 		$transport = new Mail\Transport\Sendmail();
 		$transport->send($message);
 		return true;
-
 	}
 
 	public function getAllUserRelatedDetails($user_id, $set_secretcode){
@@ -624,17 +622,19 @@ class IndexController extends AbstractActionController
 				else if(isset($friend->user_fbid) && !empty($friend->user_fbid))
 					$swapuserfriends['friend_pictureurl'] = 'http://graph.facebook.com/'.$friend->user_fbid.'/picture?type=normal';
 				else  
-					$swapuserfriends['friend_pictureurl'] = "";
+					$swapuserfriends['friend_pictureurl'] = 'https://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
 				$moveuserfriends[] = $swapuserfriends;
 			}
 		}
+		
 		$profile_photo = '';
 		if (!empty($profileDetails->profile_photo))
 			$profile_photo = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$profileDetails->profile_photo;
 		else if(isset($profileDetails->user_fbid) && !empty($profileDetails->user_fbid))
 			$profile_photo = 'http://graph.facebook.com/'.$profileDetails->user_fbid.'/picture?type=normal';
 		else
-			$profile_photo = "";
+			$profile_photo = 'https://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
+
 		$userprofileDetails[0] = array('user_id'=>$profileDetails->user_id,
 									'user_given_name'=>$profileDetails->user_given_name,									 
 									'user_profile_name'=>$profileDetails->user_profile_name,
@@ -656,7 +656,6 @@ class IndexController extends AbstractActionController
 		$dataArr[0]['userfriends'] = $moveuserfriends;
 		$dataArr[0]['userinterests'] = $swapusertags;
 		$dataArr[0]['userprofiledetails'] = $userprofileDetails;
-
 		
 		if (!empty($groupCountDetails->group_count))
 			$dataArr[0]['usergroupscount'] = $groupCountDetails->group_count;
@@ -691,8 +690,7 @@ class IndexController extends AbstractActionController
 		} 
 
 		$string = strtolower($string).'_'.time(); 
-		return $string; 
-		
+		return $string;		
 	}
 
 	public function checkProfileNameExist($string){

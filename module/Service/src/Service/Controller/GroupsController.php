@@ -61,6 +61,7 @@ class GroupsController extends AbstractActionController
 	public function groupslistAction(){
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
+			$config = $this->getServiceLocator()->get('Config');
 			$postedValues = $this->getRequest()->getPost();
 			$str = $this->getRequest()->getContent();
 			$offset = trim($postedValues['nparam']);
@@ -88,7 +89,19 @@ class GroupsController extends AbstractActionController
 				exit;
 			}
 			
-			$dataArr[0]['usergroups'] = $this->getGroupsTable()->generalGroupList((int) $limit,(int) $offset,$user_id);
+			$groupsList = $this->getGroupsTable()->generalGroupList((int) $limit,(int) $offset,$user_id);
+									
+			foreach($groupsList as $list){
+
+				if (!empty($list['group_photo_photo']))
+					$list['group_photo_photo'] = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].'/'.$list['group_id'].'/medium/'.$list['group_photo_photo'];
+				
+				else
+					$list['group_photo_photo'] = 'https://www.y2m.ae/development/jeera_me/public/images/group-img_def.jpg';
+
+				$temp[]=$list;
+			}
+			$dataArr[0]['usergroups']= $temp;
 			echo json_encode($dataArr);
 			exit;
 		}
@@ -97,6 +110,7 @@ class GroupsController extends AbstractActionController
 	public function groupdetailsAction(){
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
+			$config = $this->getServiceLocator()->get('Config');
 			$postedValues = $this->getRequest()->getPost();
 			$str = $this->getRequest()->getContent();
 			$offset = trim($postedValues['nparam']);
@@ -130,21 +144,21 @@ class GroupsController extends AbstractActionController
 
 			if (isset($group_id) && !is_numeric($group_id)) {
  				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid GroupId.";
+				$dataArr[0]['message'] = "Please input a Valid GroupId.";
 				echo json_encode($dataArr);
 				exit;		
 			}
 
 			if (isset($limit) && !is_numeric($limit)) {
  				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid Count Param.";
+				$dataArr[0]['message'] = "Please input a Valid Count Param.";
 				echo json_encode($dataArr);
 				exit;		
 			}
 
 			if (isset($offset) && !is_numeric($offset)) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid N Param.";
+				$dataArr[0]['message'] = "Please input a Valid N Param.";
 				echo json_encode($dataArr);
 				exit;
 			}
@@ -152,6 +166,11 @@ class GroupsController extends AbstractActionController
 			$newsfeedsList = $this->getGroupsTable()->getNewsFeeds($user_id,$type,$group_id,$activity,(int) $limit,(int) $offset);
 
 			foreach($newsfeedsList as $list){
+				if (!empty($list['group_photo_photo']))
+					$list['group_photo_photo'] = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].'/'.$list['group_id'].'/medium/'.$list['group_photo_photo'];
+				
+				else
+					$list['group_photo_photo'] = 'https://www.y2m.ae/development/jeera_me/public/images/group-img_def.jpg';
 						switch($list['type']){
 							case "New Activity":
 							$activity_details = array();
@@ -178,8 +197,8 @@ class GroupsController extends AbstractActionController
 							$attending_users = array();
 							if($rsvp_count>0){
 								$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
-								//print_r($attending_users);die();
 							}
+							$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
 							$activity_details = array(
 													"group_activity_id" => $activity->group_activity_id,
 													"group_activity_title" => $activity->group_activity_title,
@@ -194,7 +213,7 @@ class GroupsController extends AbstractActionController
 													"group_id" =>$list['group_id'],	
 													"user_id" => $list['user_id'],
 													"user_profile_name" => $list['user_profile_name'],												 
-													"profile_photo" => $list['profile_photo'],	
+													"profile_photo" => $profile_photo,	
 													"user_fbid" => $list['user_fbid'],													
 													"like_count"	=>$like_details['likes_counts'],
 													"is_liked"	=>$like_details['is_liked'],
@@ -232,6 +251,7 @@ class GroupsController extends AbstractActionController
 									}
 									 
 								}
+								$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
 								$discussion_details = array(
 													"group_discussion_id" => $discussion->group_discussion_id,
 													"group_discussion_content" => $discussion->group_discussion_content,
@@ -241,7 +261,7 @@ class GroupsController extends AbstractActionController
 													"user_given_name" => $list['user_given_name'],
 													"user_id" => $list['user_id'],
 													"user_profile_name" => $list['user_profile_name'],												 
-													"profile_photo" => $list['profile_photo'],
+													"profile_photo" => $profile_photo,
 													"user_fbid" => $list['user_fbid'],
 													"like_count"	=>$like_details['likes_counts'],
 													"is_liked"	=>$like_details['is_liked'],
@@ -278,6 +298,9 @@ class GroupsController extends AbstractActionController
 									}
 									 
 								}
+								if (!empty($media->media_content))
+								$media->media_content = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].'/'.$list['group_id'].'/media/medium/'.$media->media_content;
+								$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
 								$media_details = array(
 													"group_media_id" => $media->group_media_id,
 													"media_type" => $media->media_type,
@@ -290,7 +313,7 @@ class GroupsController extends AbstractActionController
 													"user_given_name" => $list['user_given_name'],
 													"user_id" => $list['user_id'],
 													"user_profile_name" => $list['user_profile_name'],												 
-													"profile_photo" => $list['profile_photo'],
+													"profile_photo" => $profile_photo,
 													"user_fbid" => $list['user_fbid'],
 													"like_count"	=>$like_details['likes_counts'],
 													"is_liked"	=>$like_details['is_liked'],	
@@ -310,6 +333,20 @@ class GroupsController extends AbstractActionController
 			exit;
 		}
     }
+
+
+    public function manipulateProfilePic($user_id, $profile_photo = null, $fb_id = null){
+    	$config = $this->getServiceLocator()->get('Config');
+		$return_photo = null;
+		if (!empty($profile_photo))
+			$return_photo = 'https://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$profile_photo;
+		else if(isset($fb_id) && !empty($fb_id))
+			$return_photo = 'http://graph.facebook.com/'.$fb_id.'/picture?type=normal';
+		else
+			$return_photo = 'https://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
+		return $return_photo;
+
+	}
 
     public function timeAgo($time_ago){ //echo $time_ago;die();
 		$time_ago = strtotime($time_ago);

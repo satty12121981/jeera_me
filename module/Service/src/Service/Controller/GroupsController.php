@@ -294,8 +294,6 @@ class GroupsController extends AbstractActionController
 						break;
 					}
 				}
-				print_r($feeds);
-				exit;
 				$dataArr[0]['flag'] = "Success";
 				$dataArr[0]['groupposts'] = $feeds;
 				echo json_encode($dataArr);
@@ -329,16 +327,24 @@ class GroupsController extends AbstractActionController
 			$city = (isset($post['city'])&&$post['city']!=null&&$post['city']!=''&&$post['city']!='undefined')?strip_tags(trim($post['city'])):'';
 			$country = (isset($post['country'])&&$post['country']!=null&&$post['country']!=''&&$post['country']!='undefined')?strip_tags(trim($post['country'])):'';	
 			$category = (isset($post['categories'])&&$post['categories']!=null&&$post['categories']!=''&&$post['categories']!='undefined')?$post['categories']:'';
-			
 			$myfriends = (isset($post['myfriends'])&&$post['myfriends']!=null&&$post['myfriends']!=''&&$post['myfriends']!='undefined'&&$post['myfriends']==true)?strip_tags(trim($post['myfriends'])):'';
-			$page = (isset($post['page'])&&$post['page']!=null&&$post['page']!=''&&$post['page']!='undefined')?strip_tags(trim($post['page'])):1;
-			
+			$offset = (isset($post['nparam'])&&$post['nparam']!=null&&$post['nparam']!=''&&$post['nparam']!='undefined')?strip_tags(trim($post['nparam'])):0;
+			$limit = (isset($post['countparam'])&&$post['countparam']!=null&&$post['countparam']!=''&&$post['countparam']!='undefined')?strip_tags(trim($post['countparam'])):30;
+			if (isset($limit) && !is_numeric($limit)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid Count Param.";
+				echo json_encode($dataArr);
+				exit;		
+			}
+			if (isset($offset) && !is_numeric($offset)) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid N Param.";
+				echo json_encode($dataArr);
+				exit;
+			}
 			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
 			$user_id = $user_details->user_id;
 			$arr_group_list = '';
-			$limit =10;
-			$page =($page>0)?$page-1:0;
-			$offset = $page*$limit;
 			$groups = $this->getUserGroupTable()->getmatchGroupsByuserTags($user_id,$city,$country,$myfriends,$category,$limit,$offset);
 			if(!empty($groups)){
 				foreach($groups as $list){

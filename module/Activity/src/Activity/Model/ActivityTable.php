@@ -704,7 +704,7 @@ class ActivityTable extends AbstractTableGateway
 		 
 		$statement = $this->adapter->createStatement();
 		$select->prepareStatement($this->adapter, $statement);
-		//echo $select->getSqlString();die();
+		//echo $select->getSqlString();
 		$resultSet = new ResultSet();
 		$resultSet->initialize($statement->execute()); 
 		return $resultSet->current();

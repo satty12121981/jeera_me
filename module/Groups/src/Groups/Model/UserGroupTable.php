@@ -468,13 +468,13 @@ class UserGroupTable extends AbstractTableGateway
 				 ;
 		$sub_select3->from('y2m_group')
 				   ->columns(array(new Expression('COUNT(y2m_group.group_id) as friend_count'),"group_id"))
-				   ->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_group.group_id = y2m_user_group.user_group_group_id',array())
+				   ->join(array('y2m_user_group'=>'y2m_user_group'),"y2m_group.group_id = y2m_user_group.user_group_group_id",array())
 				   ->where->in("user_group_user_id",$sub_select2);
 		$sub_select3->group('y2m_group.group_id');
 
 		$sub_select4->from('y2m_group')
 				   ->columns(array("group_id"))
-				   ->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_group.group_id = y2m_user_group.user_group_group_id',array())
+				   ->join(array('y2m_user_group'=>'y2m_user_group'),"y2m_group.group_id = y2m_user_group.user_group_group_id",array())
 				   ->where->in("user_group_user_id",$sub_select2);
 		$sub_select4->group('y2m_group.group_id');			 
 
@@ -489,8 +489,8 @@ class UserGroupTable extends AbstractTableGateway
 			   ->join(array('temp_member' => $sub_select), 'temp_member.group_id = y2m_group.group_id',array('member_count'),'left')
 			   ->join(array('temp_friends' => $sub_select3), 'temp_friends.group_id = y2m_group.group_id',array('friend_count'),'left')
 			   ->where('y2m_group.group_status = "active"')
-			   ->where('y2m_group.group_id NOT IN (SELECT user_group_group_id FROM y2m_user_group WHERE y2m_user_group.user_group_user_id = '.$user_id.' )')
-			   ->where(array("y2m_group_tag.group_tag_tag_id IN (SELECT user_tag_tag_id FROM y2m_user_tag WHERE user_tag_user_id = $user_id)"));
+			   ->where('y2m_group.group_id NOT IN (SELECT user_group_group_id FROM y2m_user_group WHERE user_group_user_id = '.$user_id.' )')
+			   ->where(array("y2m_group_tag.group_tag_tag_id IN (SELECT user_tag_tag_id FROM y2m_user_tag WHERE user_tag_user_id = ".$user_id.")"));
 		if($country!=''){
 			$select->where('y2m_country.country_title like "%'.$country.'%"');
 		}
@@ -500,16 +500,16 @@ class UserGroupTable extends AbstractTableGateway
 		if(!empty($category)){
 			$select->where->in("y2m_tag_category.tag_category_id",$category);
 		}
-		if (!empty($myfriends)){
-			$subquery = new Expression($sub_select4->getSqlString());
-			$select->where->in("y2m_group.group_id",array($subquery));
+		if (!empty($myfriends) && $myfriends == "yes" ){
+			$select->where(array("y2m_group.group_id IN (SELECT y2m_group.group_id AS group_id FROM y2m_group INNER JOIN y2m_user_group AS y2m_user_group ON y2m_group.group_id = y2m_user_group.user_group_group_id WHERE user_group_user_id IN (SELECT IF(user_friend_sender_user_id=$user_id,user_friend_friend_user_id,user_friend_sender_user_id) AS friend_user FROM y2m_user_friend WHERE user_friend_sender_user_id = $user_id OR user_friend_friend_user_id = $user_id) GROUP BY y2m_group.group_id)"));
 		}
 		$select->group("y2m_group.group_id");
 		$select->limit($limit);
 		$select->offset($offset);
 		$statement = $this->adapter->createStatement();
 		
-		echo $select->getSqlString();exit;
+		//echo $select->getSqlString();
+		//exit;
 		$select->prepareStatement($this->adapter, $statement);		 
 		$resultSet = new ResultSet();
 		$resultSet->initialize($statement->execute());	
@@ -602,7 +602,7 @@ class UserGroupTable extends AbstractTableGateway
 		$resultSet->initialize($statement->execute());
 		return $resultSet->toArray(); 
 	}
-	 public function deleteOneUserGroup($group_id, $user_id){
+	public function deleteOneUserGroup($group_id, $user_id){
        return $this->delete(array('user_group_user_id' => $user_id, 'user_group_group_id' => $group_id));
     }
 	public function checkOwner($group_id, $user_id){
@@ -688,7 +688,6 @@ class UserGroupTable extends AbstractTableGateway
 		//echo $select->getSqlString();exit;
 		$resultSet->initialize($statement->execute());	
 		return $resultSet->toArray();
-	 
 	}
 	public function getCreatedGroupCount($user_id){
 		$group_created_select = new Select;
@@ -706,7 +705,6 @@ class UserGroupTable extends AbstractTableGateway
 		$row =  $resultSet->current();
 		return $row;
 	}
-
 	public function getUserGroupCount($user_id){
 		$group_select = new Select;
 		$group_select->from('y2m_user_group')
@@ -723,7 +721,6 @@ class UserGroupTable extends AbstractTableGateway
 		$row =  $resultSet->current();
 		return $row;
 	}
-
 	public function getOwnersCount($group_id){
 		$select = new Select;
 		$select->from('y2m_user_group')

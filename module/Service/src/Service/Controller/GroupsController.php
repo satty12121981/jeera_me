@@ -83,6 +83,11 @@ class GroupsController extends AbstractActionController
 			$dataArr[0]['usergroups']= $temp;
 			echo json_encode($dataArr);
 			exit;
+		}else{
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request Not Authorised.";
+			echo json_encode($dataArr);
+			exit;
 		}
     }
 	
@@ -290,9 +295,77 @@ class GroupsController extends AbstractActionController
 			$dataArr[0]['groupposts'] = $feeds;
 			echo json_encode($dataArr);
 			exit;
+		}else{
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request Not Authorised.";
+			echo json_encode($dataArr);
+			exit;
 		}
     }
-
+    public function exploregroupsAction(){
+    	$error = '';
+		$request   = $this->getRequest();
+		if ($request->isPost()){ 
+			$post = $request->getPost();
+			$accToken = (isset($post['accesstoken'])&&$post['accesstoken']!=null&&$post['accesstoken']!=''&&$post['accesstoken']!='undefined')?strip_tags(trim($post['accesstoken'])):'';
+			if (empty($accToken)) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			$city = (isset($post['city'])&&$post['city']!=null&&$post['city']!=''&&$post['city']!='undefined')?strip_tags(trim($post['city'])):'';
+			$country = (isset($post['country'])&&$post['country']!=null&&$post['country']!=''&&$post['country']!='undefined')?strip_tags(trim($post['country'])):'';	
+			$category = (isset($post['categories'])&&$post['categories']!=null&&$post['categories']!=''&&$post['categories']!='undefined')?$post['categories']:'';
+			
+			$myfriends = (isset($post['myfriends'])&&$post['myfriends']!=null&&$post['myfriends']!=''&&$post['myfriends']!='undefined'&&$post['myfriends']==true)?strip_tags(trim($post['myfriends'])):'';
+			$page = (isset($post['page'])&&$post['page']!=null&&$post['page']!=''&&$post['page']!='undefined')?strip_tags(trim($post['page'])):1;
+			
+			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
+			$user_id = $user_details->user_id;
+			$arr_group_list = '';
+			$limit =10;
+			$page =($page>0)?$page-1:0;
+			$offset = $page*$limit;
+			$groups = $this->getUserGroupTable()->getmatchGroupsByuserTags($user_id,$city,$country,$myfriends,$category,$limit,$offset);
+			if(!empty($groups)){
+				foreach($groups as $list){
+					$tag_category = $this->getGroupTagTable()->getAllGroupTagCategiry($list['group_id']);
+					$tags = $this->getGroupTagTable()->fetchAllGroupTags($list['group_id']);
+					$arr_group_list[] = array(
+									'group_id' =>$list['group_id'],
+									'group_title' =>$list['group_title'],
+									'group_seo_title' =>$list['group_seo_title'],
+									'group_type' =>$list['group_type'],
+									'group_photo_photo' =>$list['group_photo_photo'],										 
+									'country_title' =>$list['country_title'],
+									'country_code' =>$list['country_code'],
+									'member_count' =>$list['member_count'],
+									'friend_count' =>$list['friend_count'],
+									'city' =>$list['city'],	
+									'tag_category_count' =>count($tag_category),
+									'tag_category' =>$tag_category,
+									'tags' =>$tags,
+									);
+				}
+			}
+		}else{
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request Not Authorised.";
+			echo json_encode($dataArr);
+			exit;
+		}
+		
+		$return_array= array();		 
+		$return_array['process_status'] = (empty($error))?'success':'failed';
+		$return_array['process_info'] = $error;	
+		$return_array['groups'] = $arr_group_list;
+		 	
+		$result = new JsonModel(array(
+		'return_array' => $return_array,      
+		));		
+		return $result;
+    }
     public function manipulateProfilePic($user_id, $profile_photo = null, $fb_id = null){
     	$config = $this->getServiceLocator()->get('Config');
 		$return_photo = null;
@@ -305,7 +378,6 @@ class GroupsController extends AbstractActionController
 		return $return_photo;
 
 	}
-
     public function timeAgo($time_ago){ //echo $time_ago;die();
 		$time_ago = strtotime($time_ago);
 		$cur_time   = time();
@@ -377,55 +449,44 @@ class GroupsController extends AbstractActionController
 		else 
 			{@preg_match('/(https:|http:|):(\/\/www\.|\/\/|)(.*?)\/(embed\/|watch.*?v=|)([a-z_A-Z0-9\-]{11})/i', $url, $IDD); return $IDD[5]; }
 	}
-
 	public function getUserTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->userTable = (!$this->userTable)?$sm->get('User\Model\UserTable'):$this->userTable;    
 	}
-	
 	public function getGroupsTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->groupTable = (!$this->groupTable)?$sm->get('Groups\Model\GroupsTable'):$this->groupTable;    
 	}
-
 	public function getUserGroupTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->userGroupTable = (!$this->userGroupTable)?$sm->get('Groups\Model\UserGroupTable'):$this->userGroupTable;    
 	}
-
 	public function getRecoveremailsTable(){
 		$sm = $this->getServiceLocator();
 		return $this->RecoveryemailsTable =(!$this->RecoveryemailsTable)?$sm->get('User\Model\RecoveryemailsTable'):$this->RecoveryemailsTable;
 	}
-
 	public function getActivityTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->activityTable = (!$this->activityTable)?$sm->get('Activity\Model\ActivityTable'):$this->activityTable;    
     }
-
 	public function getDiscussionTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->discussionTable = (!$this->discussionTable)?$sm->get('Discussion\Model\DiscussionTable'):$this->discussionTable;    
     }
-
 	public function getGroupMediaTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->groupMediaTable = (!$this->groupMediaTable)?$sm->get('Groups\Model\GroupMediaTable'):$this->groupMediaTable;    
     }
-
 	public function getLikeTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->likeTable = (!$this->likeTable)?$sm->get('Like\Model\LikeTable'):$this->likeTable; 
 	}
-
 	public function getCommentTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->commentTable = (!$this->commentTable)?$sm->get('Comment\Model\CommentTable'):$this->commentTable;   
 	}
-
 	public function getActivityRsvpTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->activityRsvpTable = (!$this->activityRsvpTable)?$sm->get('Activity\Model\ActivityRsvpTable'):$this->activityRsvpTable;
     }
-	
 }

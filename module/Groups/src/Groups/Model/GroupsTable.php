@@ -341,7 +341,7 @@ class GroupsTable extends AbstractTableGateway
 		return $row;
 	}
 	public function updateGroup($data,$group_id){
-		 $this->update($data, array('group_id' => $group_id));
+		$this->update($data, array('group_id' => $group_id));
 		return true;
 	}
 	public function searchGroup($search,$limit,$offset){

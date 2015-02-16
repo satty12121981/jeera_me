@@ -819,7 +819,7 @@ class UserProfileController extends AbstractActionController
 			}
 		}
 	}
-	public function  get_youtube_id_from_url($url){
+	public function get_youtube_id_from_url($url){
 		if (stristr($url,'youtu.be/'))
 			{preg_match('/(https:|http:|)(\/\/www\.|\/\/|)(.*?)\/(.{11})/i', $url, $final_ID); return $final_ID[4]; }
 		else 
@@ -898,8 +898,7 @@ class UserProfileController extends AbstractActionController
 				$result = new ViewModel(array('error'=>$error));
 				return $result;
 			}
-		}else{return $this->redirect()->toRoute('home', array('action' => 'index'));}
-		
+		}else{return $this->redirect()->toRoute('home', array('action' => 'index'));}		
 	}
 	public function saveSettingsAction(){
 		$error = '';
@@ -1769,6 +1768,5 @@ class UserProfileController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 		return  $this->activityRsvpTable = (!$this->activityRsvpTable)?$sm->get('Activity\Model\ActivityRsvpTable'):$this->activityRsvpTable;
     }
-	
 }
  

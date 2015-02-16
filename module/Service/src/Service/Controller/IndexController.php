@@ -10,48 +10,27 @@
 namespace Service\Controller;
 
 use Zend\Mvc\Controller\AbstractActionController;
-
 use Zend\View\Model\ViewModel;
-
 use Zend\View\Model\JsonModel;
-
 use Zend\View\Renderer\PhpRenderer;
-
 use \Exception;
-
 use Zend\Crypt\BlockCipher;
-
 use Zend\Crypt\Password\Bcrypt;	
-
 use User\Auth\BcryptDbAdapter as AuthAdapter;
-
 use Zend\Session\Container;     
-
 use Zend\Authentication\AuthenticationService;
-
 use Zend\Mail;
-
-use User\Model\User;
-
-use User\Model\UserProfile;
-
-use User\Model\UserFriend;
-
-use Tag\Model\UserTag;
-
-use User\Model\Recoveryemails;
-
-use User\Form\Login;       
-
-use User\Form\LoginFilter; 
-
-use User\Form\ResetPassword;
-
 use Zend\Mime\Message as MimeMessage;
-
 use Zend\Mime\Part as MimePart;
-
 use Zend\Authentication\Storage\Session;
+use User\Model\User;
+use User\Model\UserProfile;
+use User\Model\UserFriend;
+use Tag\Model\UserTag;
+use User\Model\Recoveryemails;
+use User\Form\Login;       
+use User\Form\LoginFilter; 
+use User\Form\ResetPassword;
 
 class IndexController extends AbstractActionController
 {
@@ -537,7 +516,6 @@ class IndexController extends AbstractActionController
 		$message->setBody($body);
 		$message->getHeaders()->get('content-type')->setType('multipart/alternative');
 
-
 		$transport = new Mail\Transport\Sendmail();
 		$transport->send($message);
 
@@ -626,7 +604,7 @@ class IndexController extends AbstractActionController
 				$moveuserfriends[] = $swapuserfriends;
 			}
 		}
-		
+
 		$profile_photo = '';
 		if (!empty($profileDetails->profile_photo))
 			$profile_photo = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$profileDetails->profile_photo;

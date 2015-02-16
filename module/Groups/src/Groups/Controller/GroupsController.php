@@ -630,7 +630,8 @@ class GroupsController extends AbstractActionController
 				$limit =10;
 				$page =($page>0)?$page-1:0;
 				$offset = $page*$limit;
-				$groups = $this->getUserGroupTable()->getmatchGroupsByuserTags($identity->user_id,$city,$country,$category,$limit,$offset);
+				$friends = '';
+				$groups = $this->getUserGroupTable()->getmatchGroupsByuserTags($identity->user_id,$city,$country,$friends,$category,$limit,$offset);
 				if(!empty($groups)){
 					foreach($groups as $list){
 						$tag_category = $this->getGroupTagTable()->getAllGroupTagCategiry($list['group_id']);
@@ -664,7 +665,7 @@ class GroupsController extends AbstractActionController
 		));		
 		return $result;
 	}
-	 public function grouplistAction(){
+	public function grouplistAction(){
         $error = '';
 		$auth = new AuthenticationService();	
 		$arr_group_list = '';
@@ -864,7 +865,6 @@ class GroupsController extends AbstractActionController
 		));		
 		return $result;
 	}
-	
 	public function joinGroupAction(){
 		$error = '';
 		$auth = new AuthenticationService();		 

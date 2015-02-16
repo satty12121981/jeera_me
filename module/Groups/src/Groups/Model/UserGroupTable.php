@@ -452,11 +452,12 @@ class UserGroupTable extends AbstractTableGateway
 		$resultSet->initialize($statement->execute());	
 		return $resultSet->toArray();
 	}
-	public function getmatchGroupsByuserTags($user_id,$city,$country,$category,$limit,$offset){
+	public function getmatchGroupsByuserTags($user_id,$city,$country,$myfriends,$category,$limit,$offset){
 		$select = new Select;
 		$sub_select = new Select;
 		$sub_select2 = new Select;
 		$sub_select3 = new Select;
+		$sub_select4 = new Select;
 		$sub_select->from('y2m_group')
 				   ->columns(array(new Expression('COUNT(y2m_group.group_id) as member_count'),"group_id"))
 				   ->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_group.group_id = y2m_user_group.user_group_group_id',array());
@@ -469,7 +470,14 @@ class UserGroupTable extends AbstractTableGateway
 				   ->columns(array(new Expression('COUNT(y2m_group.group_id) as friend_count'),"group_id"))
 				   ->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_group.group_id = y2m_user_group.user_group_group_id',array())
 				   ->where->in("user_group_user_id",$sub_select2);
-		$sub_select3->group('y2m_group.group_id');		 
+		$sub_select3->group('y2m_group.group_id');
+
+		$sub_select4->from('y2m_group')
+				   ->columns(array("group_id"))
+				   ->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_group.group_id = y2m_user_group.user_group_group_id',array())
+				   ->where->in("user_group_user_id",$sub_select2);
+		$sub_select4->group('y2m_group.group_id');			 
+
 		$select->from('y2m_group')
 			   ->join('y2m_group_tag',"y2m_group_tag.group_tag_group_id = y2m_group.group_id")
 			   ->join('y2m_tag',"y2m_group_tag.group_tag_tag_id = y2m_tag.tag_id")
@@ -492,12 +500,16 @@ class UserGroupTable extends AbstractTableGateway
 		if(!empty($category)){
 			$select->where->in("y2m_tag_category.tag_category_id",$category);
 		}
+		if (!empty($myfriends)){
+			$subquery = new Expression($sub_select4->getSqlString());
+			$select->where->in("y2m_group.group_id",array($subquery));
+		}
 		$select->group("y2m_group.group_id");
 		$select->limit($limit);
 		$select->offset($offset);
 		$statement = $this->adapter->createStatement();
 		
-		//echo $select->getSqlString();exit;
+		echo $select->getSqlString();exit;
 		$select->prepareStatement($this->adapter, $statement);		 
 		$resultSet = new ResultSet();
 		$resultSet->initialize($statement->execute());	

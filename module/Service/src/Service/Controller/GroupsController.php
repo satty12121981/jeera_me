@@ -371,15 +371,23 @@ class GroupsController extends AbstractActionController
 						unset($tags_list['group_tag_tag_id']);
 						unset($tags_list['group_tag_added_timestamp']);
 						unset($tags_list['group_tag_added_ip_address']);
-						$temp[] = $tags_list;
+						$temptags[] = $tags_list;
 					}
-					$tags = $temp;
+					$tags = $temptags;
 					foreach($tag_category as $tag_category_list){
+						unset($tag_category_list['group_tag_id']);
+						unset($tag_category_list['group_tag_group_id']);
+						unset($tag_category_list['group_tag_tag_id']);
+						unset($tag_category_list['group_tag_added_timestamp']);
+						unset($tag_category_list['group_tag_added_ip_address']);
+
 						if (!empty($tag_category_list['tag_category_icon']))
-						$tag_category['tag_category_icon'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
+						$tag_category_list['tag_category_icon'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
 						else
-						$tag_category['tag_category_icon'] = 'http://www.y2m.ae/development/jeera_me/public/images/category-icon.png';
+						$tag_category_list['tag_category_icon'] = 'http://www.y2m.ae/development/jeera_me/public/images/category-icon.png';
+						$tag_category_temp[] = $tag_category_list;
 					}
+					$tag_category = $tag_category_temp;
 					$arr_group_list[] = array(
 						'group_id' =>$list['group_id'],
 						'group_title' =>$list['group_title'],

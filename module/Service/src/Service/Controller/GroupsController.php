@@ -54,13 +54,13 @@ class GroupsController extends AbstractActionController
 			}
 			if (isset($limit) && !is_numeric($limit)) {
  				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid Count Param.";
+				$dataArr[0]['message'] = "Please input a valid Count Field.";
 				echo json_encode($dataArr);
 				exit;		
 			}
 			if (isset($offset) && !is_numeric($offset)) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid N Param.";
+				$dataArr[0]['message'] = "Please input a valid N Field.";
 				echo json_encode($dataArr);
 				exit;
 			}
@@ -75,10 +75,8 @@ class GroupsController extends AbstractActionController
 			foreach($groupsList as $list){
 				if (!empty($list['group_photo_photo']))
 					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
-				
 				else
 					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/images/group-img_def.jpg';
-
 				$temp[]=$list;
 			}
 			$dataArr[0]['flag'] = "Success";
@@ -125,17 +123,23 @@ class GroupsController extends AbstractActionController
 			}
 			if (isset($limit) && !is_numeric($limit)) {
  				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a Valid Count Param.";
+				$dataArr[0]['message'] = "Please input a Valid Count Field.";
 				echo json_encode($dataArr);
 				exit;		
 			}
 			if (isset($offset) && !is_numeric($offset)) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a Valid N Param.";
+				$dataArr[0]['message'] = "Please input a Valid N Field.";
 				echo json_encode($dataArr);
 				exit;
 			}
 			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
+			if(empty($user_details)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Invalid Access Token.";
+				echo json_encode($dataArr);
+				exit;
+			}
 			$user_id = $user_details->user_id;
 			$newsfeedsList = $this->getGroupsTable()->getNewsFeeds($user_id,$type,$group_id,$activity,(int) $limit,(int) $offset);
 			if(!empty($newsfeedsList)){
@@ -316,6 +320,7 @@ class GroupsController extends AbstractActionController
     	$error = '';
 		$request   = $this->getRequest();
 		if ($request->isPost()){ 
+			$config = $this->getServiceLocator()->get('Config');
 			$post = $request->getPost();
 			$accToken = (isset($post['accesstoken'])&&$post['accesstoken']!=null&&$post['accesstoken']!=''&&$post['accesstoken']!='undefined')?strip_tags(trim($post['accesstoken'])):'';
 			if (empty($accToken)) {
@@ -324,32 +329,57 @@ class GroupsController extends AbstractActionController
 				echo json_encode($dataArr);
 				exit;
 			}
+			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
+			if(empty($user_details)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Invalid Access Token.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			$user_id = $user_details->user_id;
 			$city = (isset($post['city'])&&$post['city']!=null&&$post['city']!=''&&$post['city']!='undefined')?strip_tags(trim($post['city'])):'';
 			$country = (isset($post['country'])&&$post['country']!=null&&$post['country']!=''&&$post['country']!='undefined')?strip_tags(trim($post['country'])):'';	
 			$category = (isset($post['categories'])&&$post['categories']!=null&&$post['categories']!=''&&$post['categories']!='undefined')?$post['categories']:'';
 			$myfriends = (isset($post['myfriends'])&&$post['myfriends']!=null&&$post['myfriends']!=''&&$post['myfriends']!='undefined'&&$post['myfriends']==true)?strip_tags(trim($post['myfriends'])):'';
-			$offset = (isset($post['nparam'])&&$post['nparam']!=null&&$post['nparam']!=''&&$post['nparam']!='undefined')?strip_tags(trim($post['nparam'])):0;
-			$limit = (isset($post['countparam'])&&$post['countparam']!=null&&$post['countparam']!=''&&$post['countparam']!='undefined')?strip_tags(trim($post['countparam'])):30;
+			$offset = (isset($post['nparam'])&&$post['nparam']!=null&&$post['nparam']!=''&&$post['nparam']!='undefined')?trim($post['nparam']):0;
+			$limit = (isset($post['countparam'])&&$post['countparam']!=null&&$post['countparam']!=''&&$post['countparam']!='undefined')?trim($post['countparam']):30;
 			if (isset($limit) && !is_numeric($limit)) {
  				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a Valid Count Param.";
+				$dataArr[0]['message'] = "Please input a Valid Count Field.";
 				echo json_encode($dataArr);
 				exit;		
 			}
 			if (isset($offset) && !is_numeric($offset)) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a Valid N Param.";
+				$dataArr[0]['message'] = "Please input a Valid N Field.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
-			$user_id = $user_details->user_id;
 			$arr_group_list = '';
-			$groups = $this->getUserGroupTable()->getmatchGroupsByuserTags($user_id,$city,$country,$myfriends,$category,$limit,$offset);
+			$groups = $this->getUserGroupTable()->getmatchGroupsByuserTags($user_id,$city,$country,$myfriends,$category,(int) $limit,(int) $offset);
 			if(!empty($groups)){
 				foreach($groups as $list){
+					if (!empty($list['group_photo_photo']))
+					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
+					else
+					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/images/group-img_def.jpg';
 					$tag_category = $this->getGroupTagTable()->getAllGroupTagCategiry($list['group_id']);
 					$tags = $this->getGroupTagTable()->fetchAllGroupTags($list['group_id']);
+					foreach($tags as $tags_list){
+						unset($tags_list['group_tag_id']);
+						unset($tags_list['group_tag_group_id']);
+						unset($tags_list['group_tag_tag_id']);
+						unset($tags_list['group_tag_added_timestamp']);
+						unset($tags_list['group_tag_added_ip_address']);
+						$temp[] = $tags_list;
+					}
+					$tags = $temp;
+					foreach($tag_category as $tag_category_list){
+						if (!empty($tag_category_list['tag_category_icon']))
+						$tag_category['tag_category_icon'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
+						else
+						$tag_category['tag_category_icon'] = 'http://www.y2m.ae/development/jeera_me/public/images/category-icon.png';
+					}
 					$arr_group_list[] = array(
 						'group_id' =>$list['group_id'],
 						'group_title' =>$list['group_title'],

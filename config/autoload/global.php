@@ -24,12 +24,13 @@ return array(
 	'pathInfo' => array(
         'ROOTPATH'         => "/var/www/html/jeera_me",
 		'group_img_path' =>"/var/www/html/jeera_me/public/datagd/group/",
-		'group_img_path_absolute_path' =>"http://y2m/development/jeera_me/public/datagd/group/",
+		'group_img_path_absolute_path' =>"http://y2m.ae/development/jeera_me/public/datagd/group/",
 		'UploadPath'       => "/var/www/html/jeera_me/public/datagd/",
 		'AlbumUploadPath'       => "/var/www/html/jeera_me/public/album/",
 		'TagCategoryPath'  => "datagd/tag_category/",
 		'base_url' =>'http://'.@$_SERVER['SERVER_NAME'].'/development/jeera_me',
 		'fbredirect' =>"http://y2m.ae/development/jeera_me/user/fbredirect",
+        'absolute_img_path' => "http://y2m.ae/development/jeera_me/public/",
     ),
 	'image_folders' => array(
         'group'         => "datagd/group/",	

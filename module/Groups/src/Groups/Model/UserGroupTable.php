@@ -494,7 +494,8 @@ class UserGroupTable extends AbstractTableGateway
 		if($city!=''){
 			$select->where('y2m_city.name like "%'.$city.'%"');
 		}
-		if(!empty($category)){
+
+		if(isset($category) && $category[0] !=''){
 			$select->where->in("y2m_tag_category.tag_category_id",$category);
 		}
 		if (!empty($myfriends) && $myfriends == "yes" ){

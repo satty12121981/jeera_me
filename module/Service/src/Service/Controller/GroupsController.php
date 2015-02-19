@@ -74,9 +74,9 @@ class GroupsController extends AbstractActionController
 			$groupsList = $this->getGroupsTable()->generalGroupList((int) $limit,(int) $offset,$user_details->user_id);
 			foreach($groupsList as $list){
 				if (!empty($list['group_photo_photo']))
-					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
+					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
 				else
-					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/images/group-img_def.jpg';
+					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].'/images/group-img_def.jpg';
 				$temp[]=$list;
 			}
 			$dataArr[0]['flag'] = "Success";
@@ -144,6 +144,24 @@ class GroupsController extends AbstractActionController
 			$newsfeedsList = $this->getGroupsTable()->getNewsFeeds($user_id,$type,$group_id,$activity,(int) $limit,(int) $offset);
 			if(!empty($newsfeedsList)){
 				foreach($newsfeedsList as $list){
+					$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
+					$profileDetails = $this->getUserTable()->getProfileDetails($list['user_id']);
+					$userprofileDetails = array('user_id'=>$profileDetails->user_id,
+								'user_given_name'=>$profileDetails->user_given_name,									 
+								'user_profile_name'=>$profileDetails->user_profile_name,
+								'user_email'=>$profileDetails->user_email,
+								'user_status'=>$profileDetails->user_status,
+								'user_fbid'=>$profileDetails->user_fbid,
+								'user_profile_about_me'=>$profileDetails->user_profile_about_me,
+								'user_profile_current_location'=>$profileDetails->user_profile_about_me,
+								'user_profile_phone'=>$profileDetails->user_profile_phone,
+								'country_title'=>$profileDetails->country_title,
+								'country_code'=>$profileDetails->country_code,
+								'country_id'=>$profileDetails->country_id,
+								'city_name'=>$profileDetails->city_name,
+								'city_id'=>$profileDetails->city_id,
+								'profile_photo'=>$profile_photo,
+								);
 					switch($list['type']){
 						case "New Activity":
 						$activity_details = array();
@@ -155,7 +173,6 @@ class GroupsController extends AbstractActionController
 						$arr_likedUsers = array(); 
 						if(!empty($like_details)&&isset($like_details['likes_counts'])){  
 							$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-							
 							if($like_details['is_liked']==1){
 								$arr_likedUsers[] = 'you';
 							}
@@ -164,14 +181,12 @@ class GroupsController extends AbstractActionController
 									$arr_likedUsers[] = $likeuser['user_given_name'];
 								}
 							}
-							 
 						}
 						$rsvp_count = $this->getActivityRsvpTable()->getCountOfAllRSVPuser($activity->group_activity_id)->rsvp_count;
 						$attending_users = array();
 						if($rsvp_count>0){
 							$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
 						}
-						$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
 						$activity_details = array(
 												"group_activity_id" => $activity->group_activity_id,
 												"group_activity_title" => $activity->group_activity_title,
@@ -184,10 +199,6 @@ class GroupsController extends AbstractActionController
 												"group_title" =>$list['group_title'],
 												"group_seo_title" =>$list['group_seo_title'],
 												"group_id" =>$list['group_id'],	
-												"user_id" => $list['user_id'],
-												"user_profile_name" => $list['user_profile_name'],												 
-												"profile_photo" => $profile_photo,	
-												"user_fbid" => $list['user_fbid'],													
 												"like_count"	=>$like_details['likes_counts'],
 												"is_liked"	=>$like_details['is_liked'],
 												"comment_counts"	=>$comment_details['comment_counts'],
@@ -197,6 +208,7 @@ class GroupsController extends AbstractActionController
 												"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
 												"is_going"=>$activity->is_going,
 												"attending_users" =>$attending_users,
+												"userprofileDetails" =>$userprofileDetails,
 												);
 						$feeds[] = array('content' => $activity_details,
 										'type'=>$list['type'],
@@ -223,7 +235,6 @@ class GroupsController extends AbstractActionController
 									}
 								}
 							}
-							$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
 							$discussion_details = array(
 												"group_discussion_id" => $discussion->group_discussion_id,
 												"group_discussion_content" => $discussion->group_discussion_content,
@@ -240,6 +251,7 @@ class GroupsController extends AbstractActionController
 												"liked_users"	=>$arr_likedUsers,
 												"comment_counts"	=>$comment_details['comment_counts'],
 												"is_commented"	=>$comment_details['is_commented'],
+												"userprofileDetails" =>$userprofileDetails,
 												);
 							$feeds[] = array('content' => $discussion_details,
 											'type'=>$list['type'],
@@ -269,8 +281,7 @@ class GroupsController extends AbstractActionController
 								}
 							}
 							if (!empty($media->media_content))
-								$media->media_content = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
-							$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
+								$media->media_content = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
 							$media_details = array(
 												"group_media_id" => $media->group_media_id,
 												"media_type" => $media->media_type,
@@ -289,7 +300,8 @@ class GroupsController extends AbstractActionController
 												"is_liked"	=>$like_details['is_liked'],	
 												"liked_users"	=>$arr_likedUsers,	
 												"comment_counts"	=>$comment_details['comment_counts'],
-												"is_commented"	=>$comment_details['is_commented'],												
+												"is_commented"	=>$comment_details['is_commented'],
+												"userprofileDetails" =>$userprofileDetails,												
 												);
 							$feeds[] = array('content' => $media_details,
 											'type'=>$list['type'],
@@ -360,9 +372,9 @@ class GroupsController extends AbstractActionController
 			if(!empty($groups)){
 				foreach($groups as $list){
 					if (!empty($list['group_photo_photo']))
-					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
+					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
 					else
-					$list['group_photo_photo'] = 'http://www.y2m.ae/development/jeera_me/public/images/group-img_def.jpg';
+					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].'/images/group-img_def.jpg';
 					$tag_category = $this->getGroupTagTable()->getAllGroupTagCategiry($list['group_id']);
 					$tags = $this->getGroupTagTable()->fetchAllGroupTags($list['group_id']);
 					foreach($tags as $tags_list){
@@ -382,9 +394,9 @@ class GroupsController extends AbstractActionController
 						unset($tag_category_list['group_tag_added_ip_address']);
 
 						if (!empty($tag_category_list['tag_category_icon']))
-						$tag_category_list['tag_category_icon'] = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
+						$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
 						else
-						$tag_category_list['tag_category_icon'] = 'http://www.y2m.ae/development/jeera_me/public/images/category-icon.png';
+						$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
 						$tag_category_temp[] = $tag_category_list;
 					}
 					$tag_category = $tag_category_temp;
@@ -427,11 +439,11 @@ class GroupsController extends AbstractActionController
     	$config = $this->getServiceLocator()->get('Config');
 		$return_photo = null;
 		if (!empty($profile_photo))
-			$return_photo = 'http://www.y2m.ae/development/jeera_me/public/'.$config['image_folders']['profile_path'].$user_id.'/'.$profile_photo;
+			$return_photo = $config['pathInfo']['absolute_img_path'].$config['image_folders']['profile_path'].$user_id.'/'.$profile_photo;
 		else if(isset($fb_id) && !empty($fb_id))
 			$return_photo = 'http://graph.facebook.com/'.$fb_id.'/picture?type=normal';
 		else
-			$return_photo = 'http://www.y2m.ae/development/jeera_me/public/images/noimg.jpg';
+			$return_photo = $config['pathInfo']['absolute_img_path'].'/images/noimg.jpg';
 		return $return_photo;
 
 	}

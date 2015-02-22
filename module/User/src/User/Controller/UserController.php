@@ -63,35 +63,39 @@ class UserController extends AbstractActionController
 			 try {
             // Proceed knowing you have a logged in user who's authenticated.
                 $access_token = $this->facebook->getAccessToken();
-                $user_profile = $this->facebook->api('/me?access_token='.$access_token);			 
+                $user_profile = $this->facebook->api('/me?access_token='.$access_token);		 
                 $this->userTable = $sm->get('User\Model\UserTable');
                 $this->userProfileTable = $sm->get('User\Model\UserProfileTable');
-				if(isset($user_profile['email'])&&$user_profile['email']!=''){
+				$UserData = $this->userTable->getUserByFbid($user_profile['id']);
+				if(!empty($UserData)&&$UserData->user_id){
+					$checkFbUserData = $UserData;
+				}else if(isset($user_profile['email'])&&$user_profile['email']!=''){				 
 					$checkFbUserData = $this->userTable->getUserByEmail($user_profile['email']);
 				}else{
 					$checkFbUserData = $this->userTable->getUserByFbid($user_profile['id']);
 				}
-                if (!empty($checkFbUserData->user_id)) {                     
-					$dbAdapter = $this->getServiceLocator()->get('Zend\Db\Adapter\Adapter');
-					
-					 
-						$auth = new AuthenticationService();
-						$storage = $auth->getStorage();
-						$storage->write($checkFbUserData);					 
-						$authNamespace = new Container(Session::NAMESPACE_DEFAULT);
-						$authNamespace->getManager()->rememberMe(2000);
-						return $this->redirect()->toRoute('home');
-					
+                if (!empty($checkFbUserData->user_id)) {
+					if($checkFbUserData->user_status == 'not activated'){
+						$data = array('user_status'=>"live");
+						$this->getUserTable()->updateUser($data,$checkFbUserData->user_id);	
+					}
+					if($checkFbUserData->user_fbid == ''){
+						$data = array('user_fbid'=>$user_profile['id']);
+						$this->getUserTable()->updateUser($data,$checkFbUserData->user_id);	
+					}
+					$container = new Container('fbUser');
+					$container->user_id =  $checkFbUserData->user_id;					
+					return $this->redirect()->toRoute('user/fbprocess');					
                 }else{					 
 					$user_data['user_given_name'] =  $user_profile['first_name'].' '.$user_profile['last_name'];
 					$user_data['user_first_name'] =  $user_profile['first_name'];
 					$user_data['user_last_name'] =  $user_profile['last_name'];
 					$user_data['user_profile_name'] = $this->make_url_friendly($user_profile['first_name']."".$user_profile['last_name']);
-					$user_data['user_status'] = 1;
-					$user_data['user_email'] = $user_profile['email'];
-					$user_data['user_gender'] = $user_profile['gender'];
+					$user_data['user_status'] = "live";
+					$user_data['user_email'] = (isset($user_profile['email']))?$user_profile['email']:NULL;
+					$user_data['user_gender'] = (isset($user_profile['gender']))?$user_profile['gender']:'';
 					$user_data['user_register_type'] = 'facebook';
-					$user_data['user_fbid'] = $user_profile['id'];
+					$user_data['user_fbid'] = $user_profile['id']; 
 					$user = new User();
 					$user->exchangeArray($user_data);
 					$insertedUserId = $this->getUserTable()->saveUser($user);
@@ -103,13 +107,9 @@ class UserController extends AbstractActionController
 						$userProfile->exchangeArray($user_profile_data);
 						$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfile($userProfile);
 					}
-					$checkFbUserData =  $this->getUserTable()->getUser($insertedUserId);
-					$auth = new AuthenticationService();
-					$storage = $auth->getStorage();
-					$storage->write($checkFbUserData);					 
-					$authNamespace = new Container(Session::NAMESPACE_DEFAULT);
-					$authNamespace->getManager()->rememberMe(2000);
-					return $this->redirect()->toRoute('home');
+					$container = new Container('fbUser');
+					$container->user_id =  $insertedUserId;					 
+					return $this->redirect()->toRoute('user/fbprocess');
 				}
             }
             catch (FacebookApiException $e) {
@@ -119,6 +119,84 @@ class UserController extends AbstractActionController
 		}else{
 			return $this->redirect()->toRoute('user/login', array('action' => 'login'));
 		}
+	}
+	public function fbprocessAction(){
+		$auth = new AuthenticationService();
+		if ($auth->hasIdentity()) {
+			$identity = $auth->getIdentity();
+			return $this->redirect()->toRoute('memberprofile', array('member_profile' => $identity->user_profile_name));
+		}else{			 
+			$container = new Container('fbUser');
+			$user = $container->user_id;
+			if($user!=''){
+				$user_details = $this->getUserTable()->getProfileDetails($user);
+				if(!empty($user_details)&&isset($user_details->user_id)&&$user_details->user_id!=''){
+					if($user_details->user_given_name!=''&&$user_details->user_profile_city_id!=''&&$user_details->user_profile_country_id!=''){
+						$checkFbUserData =  $this->getUserTable()->getUser($user_details->user_id);
+						$dbAdapter = $this->getServiceLocator()->get('Zend\Db\Adapter\Adapter');					 
+						$auth = new AuthenticationService();
+						$storage = $auth->getStorage();
+						$storage->write($checkFbUserData);					 
+						$authNamespace = new Container(Session::NAMESPACE_DEFAULT);
+						$authNamespace->getManager()->rememberMe(2000);
+						return $this->redirect()->toRoute('memberprofile', array('member_profile' => $checkFbUserData->user_profile_name));
+					}else{
+						$result = new ViewModel(array(
+								'user_details' => $user_details,								 
+						));		
+						return $result;
+					}
+					 		
+				}else{
+					return $this->redirect()->toRoute('home', array('action' => 'index'));
+				}				
+			}else{
+				return $this->redirect()->toRoute('home', array('action' => 'index'));
+			}
+		} 
+	}
+	public function fbauthAction(){
+		$error ='';
+		$msg = '';
+		$request = $this->getRequest();		 
+		if ($request->isPost()) {
+			$post = $request->getPost();
+			$user_given_name = $post['user_given_name']; 
+			$user_country_id = $post['user_country_id'];
+			$user_city_id = $post['user_city_id'];
+			if ($user_given_name=='') {$error = 'Enter your name';}
+			$container = new Container('fbUser');
+			$user = $container->user_id;
+			if($user!=''){
+				$user_details = $this->getUserTable()->getProfileDetails($user);
+				if(empty($user_details)){	$error = 'Access denied';}
+				if($error==''){
+					$data['user_given_name'] = $user_given_name;
+					$this->getUserTable()->updateUser($data,$user_details->user_id);
+					$profile_data['user_profile_country_id'] = $user_country_id;
+					$profile_data['user_profile_city_id'] = $user_city_id;
+					$this->getUserProfileTable()->updateUserProfile($profile_data,$user_details->user_id);
+					$checkFbUserData =  $this->getUserTable()->getUser($user_details->user_id);
+					$dbAdapter = $this->getServiceLocator()->get('Zend\Db\Adapter\Adapter');					 
+					$auth = new AuthenticationService();
+					$storage = $auth->getStorage();
+					$storage->write($checkFbUserData);					 
+					$authNamespace = new Container(Session::NAMESPACE_DEFAULT);
+					$authNamespace->getManager()->rememberMe(2000);
+					$container->getManager()->getStorage()->clear('fbUser');
+					//return $this->redirect()->toRoute('memberprofile', array('member_profile' => $checkFbUserData->user_profile_name));
+				}
+			}else{
+				$error = 'Access denied';
+			}			 			 	
+		}else{$error ='Unable to process';}
+		$return_array= array();		 
+		$return_array['process_status'] = (empty($error))?'success':'failed';
+		$return_array['process_info'] = (empty($error))?$msg:$error;		 
+		$result = new JsonModel(array(
+		'return_array' => $return_array,      
+		));		
+		return $result;	
 	}
 	public function registerAction(){
 		$error ='';		
@@ -145,15 +223,29 @@ class UserController extends AbstractActionController
 				$user->exchangeArray($data);
 				$insertedUserId = $this->getUserTable()->saveUser($user);
 				if($insertedUserId){
-					 
+					$dbAdapter = $this->getServiceLocator()->get('Zend\Db\Adapter\Adapter');
+					$authAdapter = new AuthAdapter($dbAdapter);
+					$authAdapter
+						->setTableName('y2m_user')
+						->setIdentityColumn('user_email')
+						->setCredentialColumn('user_password');					
+					$authAdapter
+						->setIdentity(addslashes($data['user_email']))
+						->setCredential($post['user_password']);			
+					$result = $authAdapter->authenticate();
+					if ($result->isValid()) {					
+						$auth = new AuthenticationService();
+						$storage = $auth->getStorage();
+						$storage->write($authAdapter->getResultRowObject(null,'user_password'));						 
+						$authNamespace = new Container(Session::NAMESPACE_DEFAULT);
+						$authNamespace->getManager()->rememberMe(200000);					 
+					}					
 					$profile_data['user_profile_user_id'] = $insertedUserId;
 					$profile_data['user_profile_country_id'] = strip_tags($post['user_country_id']);
 					$profile_data['user_profile_city_id'] = strip_tags($post['user_city_id']);
-					$profile_data['user_profile_status'] = "available";
-					$profile_data['user_profile_status'] = "available";
+					$profile_data['user_profile_status'] = "available";					 
 					$profile_data['user_profile_notifyme_id'] = "";
-					$profile_data['user_profile_emailme_id'] = "";
-					 
+					$profile_data['user_profile_emailme_id'] = "";					 
 					$userProfile = new UserProfile();
 					$userProfile->exchangeArray($profile_data);
 					$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfile($userProfile);					 
@@ -267,26 +359,29 @@ class UserController extends AbstractActionController
 			$form->setInputFilter(new LoginFilter());			
 			$form->setData($request->getPost());
 			if ($form->isValid()) { 
-				$data = $request->getPost();
-				
-					$dbAdapter = $this->getServiceLocator()->get('Zend\Db\Adapter\Adapter');
-					$authAdapter = new AuthAdapter($dbAdapter);
-					$authAdapter
-						->setTableName('y2m_user')
-						->setIdentityColumn('user_email')
-						->setCredentialColumn('user_password');					
-					$authAdapter
-						->setIdentity(addslashes($data['user_email']))
-						->setCredential($data['user_password']);			
-					$result = $authAdapter->authenticate(); 
-					if (!$result->isValid()) {	
-						if($this->checkUserActive($data['user_email'])){
-							$error = "Invalid Email or Password"; 
-						}else{
-							$error = "This account is not activated yet.. Please check your mail and follow the steps."; 
-							$activate_user = 'notactivated';
-						}
-					} else { 
+				$data = $request->getPost();				
+				$dbAdapter = $this->getServiceLocator()->get('Zend\Db\Adapter\Adapter');
+				$authAdapter = new AuthAdapter($dbAdapter);
+				$authAdapter
+					->setTableName('y2m_user')
+					->setIdentityColumn('user_email')
+					->setCredentialColumn('user_password');					
+				$authAdapter
+					->setIdentity(addslashes($data['user_email']))
+					->setCredential($data['user_password']);			
+				$result = $authAdapter->authenticate(); 
+				if (!$result->isValid()) {						 
+					$error = "Invalid Email or Password";					 
+				} else {
+					$user_details = $user_data= $this->getUserTable()->getUserFromEmail($data['user_email']);
+					if($user_details->user_status == 'suspend'){
+						$error = "Your account has been suspended. Please contact Jeera administrator to activate it";
+					}else if($user_details->user_status == 'block'){
+						$error = "Your account has been blocked. Please contact Jeera administrator  to activate it";
+					}
+					else if($user_details->user_status == 'delete'){
+						$error = "Account not exist";
+					}else{
 						$auth = new AuthenticationService();
 						$storage = $auth->getStorage();
 						$storage->write($authAdapter->getResultRowObject(null,'user_password'));
@@ -295,10 +390,10 @@ class UserController extends AbstractActionController
 							$authNamespace->getManager()->rememberMe(200000);
 						} else{
 							$authNamespace = new Container(Session::NAMESPACE_DEFAULT);
-							$authNamespace->getManager()->rememberMe(200);
-						}
+							$authNamespace->getManager()->rememberMe(20000);
+						}	
 					}
-				
+				}				
 			}else{
 				$validation_msg = $form->getMessages();
 				if(isset($validation_msg['user_email']['isEmpty'])&&$validation_msg['user_email']['isEmpty']!=''){
@@ -337,15 +432,18 @@ class UserController extends AbstractActionController
 		$msg = '';
 		$request = $this->getRequest();
 		if ($request->isPost()) {
-			$user_details = $this->getUserTable()->getUserFromEmail($this->params()->fromPost('user_email'));
-			if(!empty($user_details)){
-				if($user_details->user_status!='not activated'){ $error ='This user is already activated';}else{
-					$user_verification_key = md5('enckey'.rand().time());						 
-					$data['user_verification_key'] = $user_verification_key;
-					$this->getUserTable()->updateUser($data,$user_details->user_id);						
-					$this->sendVerificationEmail($user_verification_key,$user_details->user_id,$user_details->user_email);
-					$msg = "Varification code is send to your email. Please check your email and follow the instructions";
-				}
+			$user_email = $this->params()->fromPost('user_email');
+			if(!empty($user_email)){
+				$user_details = $this->getUserTable()->getUserFromEmail($this->params()->fromPost('user_email'));
+				if(!empty($user_details)){
+					if($user_details->user_status!='not activated'){ $error ='This user is already activated';}else{
+						$user_verification_key = md5('enckey'.rand().time());						 
+						$data['user_verification_key'] = $user_verification_key;
+						$this->getUserTable()->updateUser($data,$user_details->user_id);						
+						$this->sendVerificationEmail($user_verification_key,$user_details->user_id,$user_details->user_email);
+						$msg = "Verification code is sent to your email. Please check your email and follow the instructions";
+					}
+				}else{$error ='No records exist in this system with the given email id'; }
 			}else{$error ='No records exist in this system with the given email id'; }
 		}else{ $error ='Unable to process';}
 		$return_array= array();		 
@@ -356,17 +454,69 @@ class UserController extends AbstractActionController
 		));		
 		return $result;
 	}
-	public function varifyemailAction(){		  
+	public function checkUserStatusAction(){
+		$error ='';
+		$request = $this->getRequest();
+		$user_status = "active";
+		$msg ='';
+		$auth = new AuthenticationService();
+		if ($request->isPost()) {
+			if($auth->hasIdentity()) {
+				$identity = $auth->getIdentity();
+				$myinfo = $this->getUserTable()->getUser($identity->user_id);
+				if($myinfo->user_status=="not activated"){
+					$user_status = "not active";
+				}
+			}else{$error = "Your session has to be expired";}				
+		}else{ $error ='Unable to process';}
+		$return_array= array();		 
+		$return_array['process_status'] = (empty($error))?'success':'failed';
+		$return_array['user_status'] = $user_status;
+		$return_array['process_info'] = (empty($error))?$msg:$error;		 
+		$result = new JsonModel(array(
+		'return_array' => $return_array,      
+		));		
+		return $result;
+	}
+	public function varifyemailAction(){
+		$error = '';
+		$email = '';
+		$auth = new AuthenticationService();
+		$viewModel = new ViewModel();
 		$key = $this->getEvent()->getRouteMatch()->getParam('key');  
 		$id = $this->getEvent()->getRouteMatch()->getParam('id');	 
 		if($key!=''&&$id!=''){		
 			$user_id = $this->getUserTable()->checkUserVarification($key,$id);
 			if($user_id){
-				$data = array('user_status'=>1);
-				$this->getUserTable()->updateUser($data,$user_id);			
-			}else{$this->flashMessenger()->addMessage('Varification code that you are entered is not valid');}			
-		}else{$this->flashMessenger()->addMessage('Unable to process your request');} 
-		return $this->redirect()->toRoute('home', array('action' => 'index'));	
+				$data = array('user_status'=>"live");
+				$this->getUserTable()->updateUser($data,$user_id);
+				if ($auth->hasIdentity()) {
+					$userinfo = $this->getUserTable()->getUser($user_id);
+					$storage = $auth->getStorage();
+					$storage->write($userinfo);
+				}
+				return $this->redirect()->toRoute('home', array('action' => 'index'));	
+			}else{$error = 'Verification code that you are entered is not valid';}			
+		}else{$error ='Unable to process your request';} 		
+		if ($auth->hasIdentity()) {
+			$this->layout('layout/layout_user');
+			$identity = $auth->getIdentity();
+			$profilename = $this->params('member_profile');
+			$viewModel->setVariable( 'current_Profile', $profilename);			
+			$profilepic = $this->getUserTable()->getUserProfilePic($identity->user_id);
+			$pic = '';
+			if(!empty($profilepic)&&$profilepic->biopic!='')
+			$pic = $profilepic->biopic;
+			$identity->profile_pic = $pic;
+			$this->layout()->identity = $identity;
+			$userinfo = $this->getUserTable()->getUserByProfilename($profilename);
+			$config = $this->getServiceLocator()->get('Config');			 
+			$viewModel->setVariable('image_folders',$config['image_folders']);
+			$email = $identity->user_email;
+		}
+		$viewModel->setVariable('email',$email);
+		$viewModel->setVariable( 'message', $error);
+		return $viewModel;
 	}
 	public function forgotPasswordAction(){
 		$error ='';
@@ -444,7 +594,7 @@ class UserController extends AbstractActionController
 						$vm->setVariable('form', $form);						
 					}
 				 }
-			}else{$this->flashmessenger()->addMessage("Varification code that you are entered is not valid");}			
+			}else{$this->flashmessenger()->addMessage("Verification code that you have entered is not valid");}			
 		}else{$this->flashmessenger()->addMessage("Unauthorized accessUnauthorized access");	}		 
 		$vm->setVariable('flashMessages', $this->flashMessenger()->getMessages());
 		return $vm; 
@@ -490,7 +640,11 @@ class UserController extends AbstractActionController
     }
 	public function checkUserActive($email){
 		$user_data= $this->getUserTable()->getUserFromEmail($email);
-		if($user_data->user_status =='live'){return true;}else{return false;}
+		if(empty($user_data)){
+			return "not exist";
+		}elseif(!empty($user_data)&&$user_data->user_status !="live"){
+			return "not activated";
+		}else{return "active";}	
 	}
 	public function getUserTable(){
 		$sm = $this->getServiceLocator();

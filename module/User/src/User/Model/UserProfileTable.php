@@ -1,7 +1,7 @@
 <?php 
 
 namespace User\Model;
-
+use Zend\Db\Sql\Select ;
 use Zend\Db\TableGateway\AbstractTableGateway;
 use Zend\Db\Adapter\Adapter;
 use Zend\Db\ResultSet\ResultSet;

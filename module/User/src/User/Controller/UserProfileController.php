@@ -154,6 +154,9 @@ class UserProfileController extends AbstractActionController
 							$data_profile['user_profile_about_me'] = $post['about'];
 							if($this->getUserTable()->updateUser($data,$myinfo->user_id)){
 								$this->getUserProfileTable()->updateUserProfile($data_profile,$myinfo->user_id);
+								$userinfo = $this->getUserTable()->getUser($myinfo->user_id);
+								$storage = $auth->getStorage();
+								$storage->write($userinfo);
 							}else{$error = "Some error occured. Please try again";}
 						}else{$error = "Name, country and city fields are must to enter";}
 					}else{$error = "Unable to process";}
@@ -898,7 +901,8 @@ class UserProfileController extends AbstractActionController
 				$result = new ViewModel(array('error'=>$error));
 				return $result;
 			}
-		}else{return $this->redirect()->toRoute('home', array('action' => 'index'));}		
+		}else{return $this->redirect()->toRoute('home', array('action' => 'index'));}
+		
 	}
 	public function saveSettingsAction(){
 		$error = '';
@@ -1103,6 +1107,7 @@ class UserProfileController extends AbstractActionController
 								$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
 								//print_r($attending_users);die();
 							}
+							$allow_join = (strtotime($activity->group_activity_start_timestamp)>strtotime("now"))?1:0;
 							$activity_details = array(
 													"group_activity_id" => $activity->group_activity_id,
 													"group_activity_title" => $activity->group_activity_title,
@@ -1116,9 +1121,9 @@ class UserProfileController extends AbstractActionController
 													"group_seo_title" =>$list['group_seo_title'],
 													"group_id" =>$list['group_id'],	
 													"user_id" => $list['user_id'],
-													"user_profile_name" => $list['user_profile_name'],												 
+													"user_profile_name" => $list['user_profile_name'],
 													"profile_photo" => $list['profile_photo'],	
-													"user_fbid" => $list['user_fbid'],													
+													"user_fbid" => $list['user_fbid'],
 													"like_count"	=>$like_details['likes_counts'],
 													"is_liked"	=>$like_details['is_liked'],
 													"comment_counts"	=>$comment_details['comment_counts'],
@@ -1128,6 +1133,7 @@ class UserProfileController extends AbstractActionController
 													"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
 													"is_going"=>$activity->is_going,
 													"attending_users" =>$attending_users,
+													"allow_join" =>$allow_join,
 													);
 							$feeds[] = array('content' => $activity_details,
 											'type'=>$list['type'],
@@ -1286,6 +1292,7 @@ class UserProfileController extends AbstractActionController
 							if($rsvp_count>0){
 								$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
 							}
+							$allow_join = (strtotime($activity->group_activity_start_timestamp)>strtotime("now"))?1:0;
 							$activity_details = array(
 													"group_activity_id" => $activity->group_activity_id,
 													"group_activity_title" => $activity->group_activity_title,
@@ -1311,6 +1318,7 @@ class UserProfileController extends AbstractActionController
 													"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
 													"is_going"=>$activity->is_going,
 													"attending_users" =>$attending_users,
+													"allow_join" =>$allow_join,
 													);
 							$feeds[] = array('content' => $activity_details,
 											'type'=>$list['type'],
@@ -1512,6 +1520,7 @@ class UserProfileController extends AbstractActionController
 							if($rsvp_count>0){
 								$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
 							}
+							$allow_join = (strtotime($activity->group_activity_start_timestamp)>strtotime("now"))?1:0;
 							$activity_details = array(
 													"group_activity_id" => $activity->group_activity_id,
 													"group_activity_title" => $activity->group_activity_title,
@@ -1537,6 +1546,7 @@ class UserProfileController extends AbstractActionController
 													"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
 													"is_going"=>$activity->is_going,
 													"attending_users" =>$attending_users,
+													"allow_join" =>$allow_join,
 													);
 							$feeds[] = array('content' => $activity_details,
 											'type'=>$list['type'],
@@ -1768,5 +1778,6 @@ class UserProfileController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 		return  $this->activityRsvpTable = (!$this->activityRsvpTable)?$sm->get('Activity\Model\ActivityRsvpTable'):$this->activityRsvpTable;
     }
+	
 }
  

@@ -312,6 +312,7 @@ class IndexController extends AbstractActionController
 
 	public function updateAccessToken($email,$user_id){
 		$set_secretcode = $this->rec_create_secretcode($email);
+		$data['user_accessToken'] = $set_secretcode;
 		$data['user_temp_accessToken'] = $set_secretcode;
 		$this->getUserTable()->updateUser($data,$user_id);
 		$set_timestamp = $this->rec_create_timestamp();
@@ -620,7 +621,7 @@ class IndexController extends AbstractActionController
 									'user_status'=>$profileDetails->user_status,
 									'user_fbid'=>$profileDetails->user_fbid,
 									'user_profile_about_me'=>$profileDetails->user_profile_about_me,
-									'user_profile_current_location'=>$profileDetails->user_profile_about_me,
+									'user_profile_current_location'=>$profileDetails->user_profile_current_location,
 									'user_profile_phone'=>$profileDetails->user_profile_phone,
 									'country_title'=>$profileDetails->country_title,
 									'country_code'=>$profileDetails->country_code,

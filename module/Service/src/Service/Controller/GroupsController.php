@@ -46,6 +46,7 @@ class GroupsController extends AbstractActionController
 			$offset = trim($postedValues['nparam']);
 			$limit = trim($postedValues['countparam']);
 			$accToken = strip_tags(trim($postedValues['accesstoken']));
+
 			if ((!isset($accToken)) || (trim($accToken) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Request Not Authorised.";
@@ -71,8 +72,20 @@ class GroupsController extends AbstractActionController
 				echo json_encode($dataArr);
 				exit;
 			}
-			$groupsList = $this->getGroupsTable()->generalGroupList((int) $limit,(int) $offset,$user_details->user_id);
+			$strType = null;
+			$temp = array();
+			$groupsList =$this->getUserGroupTable()->fetchUserGroupList($user_details->user_id,$user_details->user_id,"","mine",(int) $limit,(int) $offset );
+			//$groupsList = $this->getGroupsTable()->generalGroupList((int) $limit,(int) $offset,$user_details->user_id);
 			foreach($groupsList as $list){
+				unset($list['user_group_id']);
+				unset($list['user_group_user_id']);
+				unset($list['user_group_group_id']);
+				unset($list['user_group_added_timestamp']);
+				unset($list['user_group_added_ip_address']);
+				unset($list['user_group_status']);
+				unset($list['user_group_is_owner']);
+				unset($list['user_group_role']);
+          
 				if (!empty($list['group_photo_photo']))
 					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
 				else
@@ -141,7 +154,7 @@ class GroupsController extends AbstractActionController
 				exit;
 			}
 			$user_id = $user_details->user_id;
-			$newsfeedsList = $this->getGroupsTable()->getNewsFeeds($user_id,$type,$group_id,$activity,(int) $limit,(int) $offset);
+			$newsfeedsList = $this->getGroupsTable()->getGroupNewsFeeds($user_id,$type,$group_id,$activity,(int) $limit,(int) $offset);
 			if(!empty($newsfeedsList)){
 				foreach($newsfeedsList as $list){
 					$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);

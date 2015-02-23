@@ -495,7 +495,7 @@ class UserGroupTable extends AbstractTableGateway
 			$select->where('y2m_city.name like "%'.$city.'%"');
 		}
 
-		if(isset($category) && $category[0] !=''){
+		if(isset($category[0]) && $category[0] !=''){
 			$select->where->in("y2m_tag_category.tag_category_id",$category);
 		}
 		if (!empty($myfriends) && $myfriends == "yes" ){
@@ -561,7 +561,7 @@ class UserGroupTable extends AbstractTableGateway
 				   ->where->in("user_group_user_id",$sub_select2);
 		$sub_select3->group('y2m_group.group_id');
 		$select->from('y2m_group')
-			   ->columns(array("group_id","group_title","group_seo_title","group_status","group_type",'is_admin'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = y2m_group.group_id AND y2m_user_group.user_group_user_id = '.$visitor_id.' AND y2m_user_group.user_group_is_owner = 1)),1,0)'),
+			   ->columns(array("group_id","group_title","group_seo_title","group_status","group_type","group_description","group_location","group_city_id","group_country_id","group_location_lat","group_location_lng","group_web_address","group_welcome_message_members",'is_admin'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = y2m_group.group_id AND y2m_user_group.user_group_user_id = '.$visitor_id.' AND y2m_user_group.user_group_is_owner = 1)),1,0)'),
 			   'is_member'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = y2m_group.group_id AND y2m_user_group.user_group_user_id = '.$visitor_id.' AND y2m_user_group.user_group_is_owner = 0)),1,0)'),
 			   'is_requested'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group_joining_request WHERE  (y2m_user_group_joining_request.user_group_joining_request_group_id = y2m_group.group_id AND y2m_user_group_joining_request.user_group_joining_request_user_id = '.$visitor_id.' AND y2m_user_group_joining_request.user_group_joining_request_status = "active")),1,0)')
 			   ))

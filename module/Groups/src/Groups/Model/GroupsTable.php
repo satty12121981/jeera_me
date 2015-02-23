@@ -178,7 +178,7 @@ class GroupsTable extends AbstractTableGateway
 					$sql.=' AND group_discussion_owner_user_id IN (SELECT  IF(user_friend_sender_user_id='.$user_id.',user_friend_friend_user_id,user_friend_sender_user_id) as friend_user FROM y2m_user_friend WHERE user_friend_sender_user_id = '.$user_id.' OR user_friend_friend_user_id = '.$user_id.' ) ' ;
 				}
 				$sql.='
-				 UNION
+				UNION
 				SELECT group_media_id as event_id,media_added_date as update_time,if(group_media_id,"New Media","") as type,user_id,user_given_name,user_profile_name,profile_photo,user_fbid,group_title,group_seo_title,group_id FROM  y2m_group_media INNER JOIN y2m_user ON y2m_user.user_id = y2m_group_media.media_added_user_id INNER JOIN y2m_group ON y2m_group_media.media_added_group_id = y2m_group.group_id LEFT JOIN y2m_user_profile_photo ON y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id WHERE media_added_group_id IN (SELECT user_group_group_id FROM y2m_user_group WHERE user_group_user_id = '.$user_id.' AND user_group_status = "available" ) AND media_status = "active"  AND y2m_user.user_status = "live" AND group_status = "active"';
 				if($group_id!=''){
 					$sql.=' AND group_id = '.$group_id;
@@ -189,7 +189,94 @@ class GroupsTable extends AbstractTableGateway
 				if($activity == 'friends_post'){
 					$sql.=' AND media_added_user_id IN (SELECT  IF(user_friend_sender_user_id='.$user_id.',user_friend_friend_user_id,user_friend_sender_user_id) as friend_user FROM y2m_user_friend WHERE user_friend_sender_user_id = '.$user_id.' OR user_friend_friend_user_id = '.$user_id.' ) ' ;
 				}				
-			
+		}
+	  	//echo $sql;die();
+		$sql.=' ORDER BY update_time DESC LIMIT '.$offset.','.$limit; 		 
+		$statement = $this->adapter-> query($sql); 		 
+		$resultSet = new ResultSet();
+		$resultSet->initialize($statement->execute());
+		return $resultSet->toArray();
+	}
+	public function getGroupNewsFeeds($user_id,$type,$group_id,$activity,$limit,$offset){
+		
+		$result = new ResultSet();
+		if($activity=='goingto'){
+			$type = 'Event';
+		}
+		switch($type){
+			case 'Text':
+				$sql = 'SELECT group_discussion_id as event_id,group_discussion_added_timestamp as update_time,if(group_discussion_id,"New Status","") as type,user_id,user_given_name,user_profile_name,profile_photo,user_fbid,group_title,group_seo_title,group_id  FROM  y2m_group_discussion INNER JOIN y2m_user ON y2m_user.user_id = y2m_group_discussion.group_discussion_owner_user_id INNER JOIN y2m_group ON y2m_group_discussion.group_discussion_group_id = y2m_group.group_id  LEFT JOIN y2m_user_profile_photo ON y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id WHERE group_discussion_group_id IN (SELECT user_group_group_id FROM y2m_user_group WHERE user_group_status = "available" ) AND group_discussion_status = "available" AND y2m_user.user_status = "live" AND group_status = "active" AND group_type = "open"';
+				if($group_id!=''){
+					$sql.=' AND group_id = '.$group_id;
+				}
+				if($activity == 'Interactions'){
+					$sql.=' AND (group_discussion_id IN (SELECT comment_refer_id FROM y2m_comment WHERE comment_system_type_id = 2 AND comment_by_user_id = '.$user_id.') OR group_discussion_id IN(SELECT like_refer_id FROM y2m_like WHERE like_system_type_id = 2 AND like_by_user_id = '.$user_id.')) ' ;
+				}
+				if($activity == 'friends_post'){
+					$sql.=' AND group_discussion_owner_user_id IN (SELECT  IF(user_friend_sender_user_id='.$user_id.',user_friend_friend_user_id,user_friend_sender_user_id) as friend_user FROM y2m_user_friend WHERE user_friend_sender_user_id = '.$user_id.' OR user_friend_friend_user_id = '.$user_id.' )  ' ;
+				}
+			break;
+			case 'Media':
+				$sql = 'SELECT group_media_id as event_id,media_added_date as update_time,if(group_media_id,"New Media","") as type,user_id,user_given_name,user_profile_name,profile_photo,user_fbid,group_title,group_seo_title,group_id FROM  y2m_group_media INNER JOIN y2m_user ON y2m_user.user_id = y2m_group_media.media_added_user_id INNER JOIN y2m_group ON y2m_group_media.media_added_group_id = y2m_group.group_id LEFT JOIN y2m_user_profile_photo ON y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id WHERE media_added_group_id IN (SELECT user_group_group_id FROM y2m_user_group WHERE user_group_status = "available" ) AND media_status = "active"  AND y2m_user.user_status = "live" AND group_status = "active" AND group_type = "open"';
+				if($group_id!=''){
+					$sql.=' AND group_id = '.$group_id;
+				}
+				if($activity == 'Interactions'){
+					$sql.=' AND (group_media_id IN (SELECT comment_refer_id FROM y2m_comment WHERE comment_system_type_id = 4 AND comment_by_user_id = '.$user_id.') OR group_media_id IN(SELECT like_refer_id FROM y2m_like WHERE like_system_type_id = 4 AND like_by_user_id = '.$user_id.')) ' ;
+				}
+				if($activity == 'friends_post'){
+					$sql.=' AND media_added_user_id IN (SELECT  IF(user_friend_sender_user_id='.$user_id.',user_friend_friend_user_id,user_friend_sender_user_id) as friend_user FROM y2m_user_friend WHERE user_friend_sender_user_id = '.$user_id.' OR user_friend_friend_user_id = '.$user_id.' ) ' ;
+				}
+			break;
+			case 'Event':
+				$sql = 'SELECT group_activity_id as event_id,group_activity_added_timestamp as update_time,if(group_activity_id,"New Activity","") as type,	user_id,user_given_name,user_profile_name,user_fbid,profile_photo,group_title,group_seo_title,group_id FROM  y2m_group_activity INNER JOIN y2m_user ON y2m_user.user_id = y2m_group_activity.group_activity_owner_user_id 	INNER JOIN y2m_group ON y2m_group_activity.group_activity_group_id = y2m_group.group_id LEFT JOIN y2m_user_profile_photo ON y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id WHERE group_activity_group_id IN (SELECT user_group_group_id FROM y2m_user_group WHERE user_group_status = "available") AND group_activity_status = "active" AND y2m_user.user_status = "live" AND group_status = "active" AND group_type = "open"';
+				if($group_id!=''){
+					$sql.=' AND group_id = '.$group_id;
+				}
+				if($activity == 'Interactions'){
+					$sql.=' AND (group_activity_id IN (SELECT comment_refer_id FROM y2m_comment WHERE comment_system_type_id = 1 AND comment_by_user_id = '.$user_id.') OR group_activity_id IN(SELECT like_refer_id FROM y2m_like WHERE like_system_type_id = 1 AND like_by_user_id = '.$user_id.')) ' ;
+				}
+				if($activity == 'friends_post'){
+					$sql.=' AND group_activity_owner_user_id IN (SELECT  IF(user_friend_sender_user_id='.$user_id.',user_friend_friend_user_id,user_friend_sender_user_id) as friend_user FROM y2m_user_friend WHERE user_friend_sender_user_id = '.$user_id.' OR user_friend_friend_user_id = '.$user_id.' ) ' ;
+				}
+				if($activity == 'goingto'){
+					$sql.=' AND group_activity_id IN (SELECT group_activity_rsvp_activity_id FROM y2m_group_activity_rsvp WHERE group_activity_rsvp_user_id = '.$user_id.') ' ;
+				}
+			break;
+			default :
+				$sql = 'SELECT group_activity_id as event_id,group_activity_added_timestamp as update_time,if(group_activity_id,"New Activity","") as type,	user_id,user_given_name,user_profile_name,profile_photo,user_fbid,group_title,group_seo_title,group_id FROM  y2m_group_activity INNER JOIN y2m_user ON y2m_user.user_id = y2m_group_activity.group_activity_owner_user_id 	INNER JOIN y2m_group ON y2m_group_activity.group_activity_group_id = y2m_group.group_id LEFT JOIN y2m_user_profile_photo ON y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id WHERE group_activity_group_id IN (SELECT user_group_group_id FROM y2m_user_group WHERE user_group_status = "available") AND group_activity_status = "active" AND y2m_user.user_status = "live" AND group_status = "active" AND group_type = "open"';
+				if($group_id!=''){
+					$sql.=' AND group_id = '.$group_id;
+				}
+				if($activity == 'Interactions'){
+					$sql.=' AND (group_activity_id IN (SELECT comment_refer_id FROM y2m_comment WHERE comment_system_type_id = 1 AND comment_by_user_id = '.$user_id.') OR group_activity_id IN(SELECT like_refer_id FROM y2m_like WHERE like_system_type_id = 1 AND like_by_user_id = '.$user_id.')) ' ;
+				}
+				if($activity == 'friends_post'){
+					$sql.=' AND group_activity_owner_user_id IN (SELECT  IF(user_friend_sender_user_id='.$user_id.',user_friend_friend_user_id,user_friend_sender_user_id) as friend_user FROM y2m_user_friend WHERE user_friend_sender_user_id = '.$user_id.' OR user_friend_friend_user_id = '.$user_id.' ) ' ;
+				}
+				$sql.=' UNION
+				SELECT group_discussion_id as event_id,group_discussion_added_timestamp as update_time,if(group_discussion_id,"New Status","") as type,user_id,user_given_name,user_profile_name,profile_photo,user_fbid,group_title,group_seo_title,group_id  FROM  y2m_group_discussion INNER JOIN y2m_user ON y2m_user.user_id = y2m_group_discussion.group_discussion_owner_user_id INNER JOIN y2m_group ON y2m_group_discussion.group_discussion_group_id = y2m_group.group_id  LEFT JOIN y2m_user_profile_photo ON y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id WHERE group_discussion_group_id IN (SELECT user_group_group_id FROM y2m_user_group WHERE user_group_status = "available" ) AND group_discussion_status = "available" AND y2m_user.user_status = "live" AND group_status = "active" AND group_type = "open"';
+				if($group_id!=''){
+					$sql.=' AND group_id = '.$group_id;
+				}
+				if($activity == 'Interactions'){
+					$sql.=' AND (group_discussion_id IN (SELECT comment_refer_id FROM y2m_comment WHERE comment_system_type_id = 2 AND comment_by_user_id = '.$user_id.') OR group_discussion_id IN(SELECT like_refer_id FROM y2m_like WHERE like_system_type_id = 2 AND like_by_user_id = '.$user_id.')) ' ;
+				}
+				if($activity == 'friends_post'){
+					$sql.=' AND group_discussion_owner_user_id IN (SELECT  IF(user_friend_sender_user_id='.$user_id.',user_friend_friend_user_id,user_friend_sender_user_id) as friend_user FROM y2m_user_friend WHERE user_friend_sender_user_id = '.$user_id.' OR user_friend_friend_user_id = '.$user_id.' ) ' ;
+				}
+				$sql.='
+				UNION
+				SELECT group_media_id as event_id,media_added_date as update_time,if(group_media_id,"New Media","") as type,user_id,user_given_name,user_profile_name,profile_photo,user_fbid,group_title,group_seo_title,group_id FROM  y2m_group_media INNER JOIN y2m_user ON y2m_user.user_id = y2m_group_media.media_added_user_id INNER JOIN y2m_group ON y2m_group_media.media_added_group_id = y2m_group.group_id LEFT JOIN y2m_user_profile_photo ON y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id WHERE media_added_group_id IN (SELECT user_group_group_id FROM y2m_user_group WHERE user_group_status = "available" ) AND media_status = "active"  AND y2m_user.user_status = "live" AND group_status = "active" AND group_type = "open"';
+				if($group_id!=''){
+					$sql.=' AND group_id = '.$group_id;
+				}
+				if($activity == 'Interactions'){
+					$sql.=' AND (group_media_id IN (SELECT comment_refer_id FROM y2m_comment WHERE comment_system_type_id = 4 AND comment_by_user_id = '.$user_id.') OR group_media_id IN(SELECT like_refer_id FROM y2m_like WHERE like_system_type_id =4 AND like_by_user_id = '.$user_id.')) ' ;
+				}
+				if($activity == 'friends_post'){
+					$sql.=' AND media_added_user_id IN (SELECT  IF(user_friend_sender_user_id='.$user_id.',user_friend_friend_user_id,user_friend_sender_user_id) as friend_user FROM y2m_user_friend WHERE user_friend_sender_user_id = '.$user_id.' OR user_friend_friend_user_id = '.$user_id.' ) ' ;
+				}				
 		}
 	  	//echo $sql;die();
 		$sql.=' ORDER BY update_time DESC LIMIT '.$offset.','.$limit; 		 

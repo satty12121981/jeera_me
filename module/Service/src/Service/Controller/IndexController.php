@@ -39,6 +39,7 @@ class IndexController extends AbstractActionController
 	protected $userProfileTable;
 	protected $userFriendTable;
 	protected $userGroupTable;
+	protected $groupTable;
 	protected $userTagTable;
 	protected $RecoveryemailsTable;
 	protected $WEB_STAMPTIME;
@@ -319,6 +320,264 @@ class IndexController extends AbstractActionController
 		$data_array = compact('set_timestamp');
 		$this->getUserTable()->updateUser($data_array,$user_id);
 		return $set_secretcode;
+	}
+
+	public function userfulldetailsAction(){
+		$request = $this->getRequest();
+		if($this->getRequest()->getMethod() == 'POST') {
+
+			$config = $this->getServiceLocator()->get('Config');
+			$postedValues = $this->getRequest()->getPost();
+
+			$userID = trim($postedValues['userID']);
+			$accToken = strip_tags(trim($postedValues['accesstoken']));
+
+			if ((!isset($accToken)) || (trim($accToken) == '')) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			if ((!isset($userID)) || (trim($userID) == '')) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			if (isset($userID) && !is_numeric($userID)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid userID.";
+				echo json_encode($dataArr);
+			}
+
+			$postedValues = $this->getRequest()->getPost();
+			$user_details = $this->getUserTable()->getUser($userID);
+			$dataArr = $this->getAllUserRelatedDetails($user_details->user_id,$user_details->user_accessToken);
+			echo json_encode($dataArr);
+			exit;
+		}else{
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request Not Authorised.";
+			echo json_encode($dataArr);
+			exit;
+		}
+	}
+
+	public function usergroupfeedsAction(){
+		$request = $this->getRequest();
+		if($this->getRequest()->getMethod() == 'POST') {
+			$config = $this->getServiceLocator()->get('Config');
+			$postedValues = $this->getRequest()->getPost();
+
+			$type = trim($postedValues['type']);
+			$offset = trim($postedValues['nparam']);
+			$limit = trim($postedValues['countparam']);
+			
+			$accToken = strip_tags(trim($postedValues['accesstoken']));
+
+			if ((!isset($accToken)) || (trim($accToken) == '')) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			
+			if (isset($limit) && !is_numeric($limit)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid Count Field.";
+				echo json_encode($dataArr);
+				exit;		
+			}
+			if (isset($offset) && !is_numeric($offset)) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid N Field.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
+			if(empty($user_details)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Invalid Access Token.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			$user_id = $user_details->user_id;
+			
+			$newsfeedsList = $this->getGroupsTable()->getMyFeeds($user_id,$type,(int) $limit,(int) $offset);				 
+			if(!empty($newsfeedsList)){
+				foreach($newsfeedsList as $list){
+					$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
+					$profileDetails = $this->getUserTable()->getProfileDetails($list['user_id']);
+					$userprofiledetails = array('user_id'=>$profileDetails->user_id,
+								'user_given_name'=>$profileDetails->user_given_name,									 
+								'user_profile_name'=>$profileDetails->user_profile_name,
+								'user_email'=>$profileDetails->user_email,
+								'user_status'=>$profileDetails->user_status,
+								'user_fbid'=>$profileDetails->user_fbid,
+								'user_profile_about_me'=>$profileDetails->user_profile_about_me,
+								'user_profile_current_location'=>$profileDetails->user_profile_current_location,
+								'user_profile_phone'=>$profileDetails->user_profile_phone,
+								'country_title'=>$profileDetails->country_title,
+								'country_code'=>$profileDetails->country_code,
+								'country_id'=>$profileDetails->country_id,
+								'city_name'=>$profileDetails->city_name,
+								'city_id'=>$profileDetails->city_id,
+								'profile_photo'=>$profile_photo,
+								);
+					switch($list['type']){
+						case "New Activity":
+						$activity_details = array();
+						$activity = $this->getActivityTable()->getActivityForFeed($list['event_id'],$user_id);
+						$SystemTypeData   = $this->getGroupsTable()->fetchSystemType("Activity");
+						$like_details     = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
+						$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
+						$str_liked_users  = '';
+						$arr_likedUsers = array(); 
+						if(!empty($like_details)&&isset($like_details['likes_counts'])){  
+							$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
+							if($like_details['is_liked']==1){
+								$arr_likedUsers[] = 'you';
+							}
+							if($like_details['likes_counts']>0&&!empty($liked_users)){
+								foreach($liked_users as $likeuser){
+									$arr_likedUsers[] = $likeuser['user_given_name'];
+								}
+							}
+						}
+						$rsvp_count = $this->getActivityRsvpTable()->getCountOfAllRSVPuser($activity->group_activity_id)->rsvp_count;
+						$attending_users = array();
+						if($rsvp_count>0){
+							$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
+						}
+						$activity_details = array(
+												"group_activity_id" => $activity->group_activity_id,
+												"group_activity_title" => $activity->group_activity_title,
+												"group_activity_location" => $activity->group_activity_location,
+												"group_activity_location_lat" => $activity->group_activity_location_lat,
+												"group_activity_location_lng" => $activity->group_activity_location_lng,
+												"group_activity_content" => $activity->group_activity_content,
+												"group_activity_start_timestamp" => date("M d,Y H:s a",strtotime($activity->group_activity_start_timestamp)),												 
+												"group_title" =>$list['group_title'],
+												"group_seo_title" =>$list['group_seo_title'],
+												"group_id" =>$list['group_id'],	
+												"like_count"	=>$like_details['likes_counts'],
+												"is_liked"	=>$like_details['is_liked'],
+												"comment_counts"	=>$comment_details['comment_counts'],
+												"is_commented"	=>$comment_details['is_commented'],
+												"liked_users"	=>$arr_likedUsers,
+												"rsvp_count" =>($activity->rsvp_count)?$activity->rsvp_count:0,
+												"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
+												"is_going"=>$activity->is_going,
+												"attending_users" =>$attending_users,
+												"userprofiledetails" =>$userprofiledetails,
+												);
+						$feeds[] = array('content' => $activity_details,
+										'type'=>$list['type'],
+										'time'=>$this->timeAgo($list['update_time']),
+						); 							
+						break;
+						case "New Status":
+							$discussion_details = array();
+							$discussion = $this->getDiscussionTable()->getDiscussionForFeed($list['event_id']);
+							$SystemTypeData = $this->getGroupsTable()->fetchSystemType("Discussion");
+							$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
+							$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
+							$str_liked_users = '';
+							$arr_likedUsers = array();
+							if(!empty($like_details)&&isset($like_details['likes_counts'])){  
+								$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
+								
+								if($like_details['is_liked']==1){
+									$arr_likedUsers[] = 'you';
+								}
+								if($like_details['likes_counts']>0&&!empty($liked_users)){
+									foreach($liked_users as $likeuser){
+										$arr_likedUsers[] = $likeuser['user_given_name'];
+									}
+								}
+							}
+							$discussion_details = array(
+												"group_discussion_id" => $discussion->group_discussion_id,
+												"group_discussion_content" => $discussion->group_discussion_content,
+												"group_title" =>$list['group_title'],
+												"group_seo_title" =>$list['group_seo_title'],
+												"group_id" =>$list['group_id'],												
+												"like_count"	=>$like_details['likes_counts'],
+												"is_liked"	=>$like_details['is_liked'],
+												"liked_users"	=>$arr_likedUsers,
+												"comment_counts"	=>$comment_details['comment_counts'],
+												"is_commented"	=>$comment_details['is_commented'],
+												"userprofiledetails" =>$userprofiledetails,
+												);
+							$feeds[] = array('content' => $discussion_details,
+											'type'=>$list['type'],
+											'time'=>$this->timeAgo($list['update_time']),
+							); 
+						break;
+						case "New Media":
+							$media_details = array();
+							$media = $this->getGroupMediaTable()->getMediaForFeed($list['event_id']);
+							$video_id  = '';
+							if($media->media_type == 'video')
+							$video_id  = $this->get_youtube_id_from_url($media->media_content);
+							$SystemTypeData = $this->getGroupsTable()->fetchSystemType("Media");
+							$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
+							$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
+							$str_liked_users = '';
+							$arr_likedUsers = array();
+							if(!empty($like_details)&&isset($like_details['likes_counts'])){  
+								$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
+								if($like_details['is_liked']==1){
+									$arr_likedUsers[] = 'you';
+								}
+								if($like_details['likes_counts']>0&&!empty($liked_users)){
+									foreach($liked_users as $likeuser){
+										$arr_likedUsers[] = $likeuser['user_given_name'];
+									}
+								}
+							}
+							if (!empty($media->media_content))
+								$media->media_content = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
+							$media_details = array(
+												"group_media_id" => $media->group_media_id,
+												"media_type" => $media->media_type,
+												"media_content" => $media->media_content,
+												"media_caption" => $media->media_caption,
+												"video_id" => $video_id,
+												"group_title" =>$list['group_title'],
+												"group_seo_title" =>$list['group_seo_title'],	
+												"group_id" =>$list['group_id'],													
+												"like_count"	=>$like_details['likes_counts'],
+												"is_liked"	=>$like_details['is_liked'],	
+												"liked_users"	=>$arr_likedUsers,	
+												"comment_counts"	=>$comment_details['comment_counts'],
+												"is_commented"	=>$comment_details['is_commented'],
+												"userprofiledetails" =>$userprofiledetails,												
+												);
+							$feeds[] = array('content' => $media_details,
+											'type'=>$list['type'],
+											'time'=>$this->timeAgo($list['update_time']),
+							); 
+						break;
+					}
+				}
+				$dataArr[0]['flag'] = "Success";
+				$dataArr[0]['groupposts'] = $feeds;
+				echo json_encode($dataArr);
+				exit; 
+			}else{
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "No details available.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			
+		}else{
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request Not Authorised.";
+			echo json_encode($dataArr);
+			exit;
+		}
 	}
 		
 	public function loginaccessAction(){
@@ -698,6 +957,11 @@ class IndexController extends AbstractActionController
 	public function getUserFriendTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->userFriendTable = (!$this->userFriendTable)?$sm->get('User\Model\UserFriendTable'):$this->userFriendTable;    
+	}
+
+	public function getGroupsTable(){
+		$sm = $this->getServiceLocator();
+		return  $this->groupTable = (!$this->groupTable)?$sm->get('Groups\Model\GroupsTable'):$this->groupTable;    
 	}
 
 	public function getUserGroupTable(){

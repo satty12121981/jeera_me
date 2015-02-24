@@ -506,7 +506,7 @@ class GroupsController extends AbstractActionController
 						$friend_status = 'IsFriend';
 					}
 					else if($is_requested){
-						$friend_status = 'AccessUserReqqested';
+						$friend_status = 'AccessUserRequested';
 					}
 					else if($isPending){
 						$friend_status = 'GroupUserRequested';

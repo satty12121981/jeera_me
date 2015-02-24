@@ -503,14 +503,36 @@ class GroupsController extends AbstractActionController
 					$profile_photo = $this->manipulateProfilePic($myinfo->user_id, $list['profile_icon'], $list['user_fbid']);
 					$friend_status ="";
 					if($is_friend){
-						$friend_status = 'Logged in user is a friend to the Group user';
+						$friend_status = 'IsFriend';
 					}
-					elseif($is_requested){
-						$friend_status = 'Logged in User has sent a request to the Group user';
-
-					}elseif($isPending){
-						$friend_status = 'Group User has sent a request to the logged in user';
+					else if($is_requested){
+						$friend_status = 'AccessUserReqqested';
 					}
+					else if($isPending){
+						$friend_status = 'GroupUserRequested';
+					}
+					else if ( $myinfo->user_id == $list['user_id']){
+						$friend_status = '';
+					}else{
+						$friend_status = 'NoFriends';
+					}
+					if (count($tag_category)){
+						$tag_category_temp = array();
+						foreach($tag_category as $tag_category_list){
+							unset($tag_category_list['user_tag_id']);
+							unset($tag_category_list['user_tag_user_id']);
+							unset($tag_category_list['user_tag_tag_id']);
+							unset($tag_category_list['user_tag_added_timestamp']);
+							unset($tag_category_list['user_tag_added_ip_address']);
+							if (!empty($tag_category_list['tag_category_icon']))
+							$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
+							else
+							$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
+							$tag_category_temp[] = $tag_category_list;
+						}
+						$tag_category = $tag_category_temp;
+					}
+					
 					$arrMembers[] = array(
 									'user_id'=>$list['user_id'],
 									'user_given_name'=>$list['user_given_name'],

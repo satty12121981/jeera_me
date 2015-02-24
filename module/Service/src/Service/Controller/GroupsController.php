@@ -437,6 +437,112 @@ class GroupsController extends AbstractActionController
 		}
 		return;
     }
+    public function groupmembersAction(){
+    	if($this->getRequest()->getMethod() == 'POST') {
+			$config = $this->getServiceLocator()->get('Config');
+			$postedValues = $this->getRequest()->getPost();
+			$offset = trim($postedValues['nparam']);
+			$limit = trim($postedValues['countparam']);
+			$type = trim($postedValues['type']);
+			$group_id = trim($postedValues['groupid']);
+			$accToken = strip_tags(trim($postedValues['accesstoken']));
+
+			if ((!isset($accToken)) || (trim($accToken) == '')) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			if ((!isset($group_id)) || (trim($group_id) == '')) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			if (isset($group_id) && !is_numeric($group_id)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid GroupId.";
+				echo json_encode($dataArr);
+				exit;		
+			}
+			if (isset($limit) && !is_numeric($limit)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid Count Field.";
+				echo json_encode($dataArr);
+				exit;		
+			}
+			if (isset($offset) && !is_numeric($offset)) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid N Field.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			$myinfo = $this->getUserTable()->getUserByAccessToken($accToken);
+			if(empty($myinfo)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Invalid Access Token.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			$error = "";
+			$tempmembers = array();
+			$group  = $this->getGroupsTable()->getPlanetinfo($group_id);
+			$error =(empty($group)||$group_id=='')?"Given group not exist in this system":$error;	
+			$members_list = $this->getUserGroupTable()->getMembers($group_id,$myinfo->user_id,$type,(int) $offset,(int) $limit);
+			
+			if(!empty($members_list)){
+				foreach($members_list as $list){
+					$tag_category = $this->getUserTagTable()->getAllUserTagCategiry($list['user_id']);
+					$objcreated_group_count = $this->getUserGroupTable()->getCreatedGroupCount($list['user_id']);
+					if(!empty($objcreated_group_count)){
+					$created_group_count = $objcreated_group_count->created_group_count;
+					}else{$created_group_count =0;}
+					$is_friend = ($this->getUserFriendTable()->isFriend($list['user_id'],$myinfo->user_id))?1:0;
+					$is_requested = ($this->getUserFriendTable()->isRequested($list['user_id'],$myinfo->user_id))?1:0;
+					$isPending = ($this->getUserFriendTable()->isPending($list['user_id'],$myinfo->user_id))?1:0;
+					$profile_photo = $this->manipulateProfilePic($myinfo->user_id, $list['profile_icon'], $list['user_fbid']);
+					$friend_status ="";
+					if($is_friend){
+						$friend_status = 'Logged in user is a friend to the Group user';
+					}
+					elseif($is_requested){
+						$friend_status = 'Logged in User has sent a request to the Group user';
+
+					}elseif($isPending){
+						$friend_status = 'Group User has sent a request to the logged in user';
+					}
+					$arrMembers[] = array(
+									'user_id'=>$list['user_id'],
+									'user_given_name'=>$list['user_given_name'],
+									'user_profile_name'=>$list['user_profile_name'],
+									'country_title'=>$list['country_title'],
+									'country_code'=>$list['country_code'],
+									'city'=>$list['city'],
+									'profile_photo'=>$profile_photo,
+									'tag_count' =>count($tag_category),
+									'tag_category' =>$tag_category,
+									'access_user_created_group_count'=>$list['group_count'],
+									'group_user_created_group_count'=>$created_group_count,
+									'is_admin'=>($type == 'pending')?0:$list['is_admin'],
+									'user_group_is_owner'=>($type == 'pending')?0:$list['user_group_is_owner'],
+									'user_group_role'=>($type == 'pending')?'':$list['user_group_role'],
+									'friendship_status'=>$friend_status,
+									);
+				}
+			}
+			$dataArr[0]['flag'] = (empty($error))?'Success':'Failure';
+			if ($error) $dataArr[0]['message'] = $error;
+
+			$dataArr[0]['groupmembers'] = $arrMembers;		
+			echo json_encode($dataArr);
+			exit;
+		}else{
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request Not Authorised.";
+			echo json_encode($dataArr);
+			exit;
+		}
+    }
     public function manipulateProfilePic($user_id, $profile_photo = null, $fb_id = null){
     	$config = $this->getServiceLocator()->get('Config');
 		$return_photo = null;
@@ -514,7 +620,7 @@ class GroupsController extends AbstractActionController
 			}
 		}
 	}
-	public function  get_youtube_id_from_url($url){
+	public function get_youtube_id_from_url($url){
 		if (stristr($url,'youtu.be/'))
 			{preg_match('/(https:|http:|)(\/\/www\.|\/\/|)(.*?)\/(.{11})/i', $url, $final_ID); return $final_ID[4]; }
 		else 
@@ -564,4 +670,12 @@ class GroupsController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 		return  $this->activityRsvpTable = (!$this->activityRsvpTable)?$sm->get('Activity\Model\ActivityRsvpTable'):$this->activityRsvpTable;
     }
+    public function getUserTagTable(){
+		$sm = $this->getServiceLocator();
+		return  $this->userTagTable = (!$this->userTagTable)?$sm->get('Tag\Model\UserTagTable'):$this->userTagTable;    
+	}
+	public function getUserFriendTable(){
+		$sm = $this->getServiceLocator();
+		return  $this->userFriendTable = (!$this->userFriendTable)?$sm->get('User\Model\UserFriendTable'):$this->userFriendTable;    
+	}
 }

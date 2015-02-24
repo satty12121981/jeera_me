@@ -652,7 +652,7 @@ class UserGroupTable extends AbstractTableGateway
 		$group_created_select->group('y2m_user_group.user_group_user_id');
 		$select = new Select;
 		$select->from('y2m_user')
-				->columns(array('user_id','user_given_name','user_profile_name','is_admin'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = '.$group_id.' AND y2m_user_group.user_group_user_id = y2m_user.user_id AND y2m_user_group.user_group_is_owner = 1)),1,0)')))
+				->columns(array('user_id','user_given_name','user_profile_name','user_fbid','is_admin'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = '.$group_id.' AND y2m_user_group.user_group_user_id = y2m_user.user_id AND y2m_user_group.user_group_is_owner = 1)),1,0)')))
 				->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_user.user_id = y2m_user_group.user_group_user_id',array('user_group_is_owner','user_group_role'))
 				->join('y2m_user_profile', 'y2m_user_profile.user_profile_id = y2m_user.user_id', array('*'))
 				->join("y2m_country","y2m_country.country_id = y2m_user_profile.user_profile_country_id",array("country_code_googlemap","country_title","country_code"),'left')

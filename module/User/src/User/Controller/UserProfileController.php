@@ -902,7 +902,6 @@ class UserProfileController extends AbstractActionController
 				return $result;
 			}
 		}else{return $this->redirect()->toRoute('home', array('action' => 'index'));}
-		
 	}
 	public function saveSettingsAction(){
 		$error = '';

@@ -312,8 +312,37 @@ class GroupsController extends AbstractActionController
 						break;
 					}
 				}
+				$groupUsers = $this->getUserGroupTable()->fetchAllUserListForGroup($group_id,$user_id,0,5)->toArray();
 				$dataArr[0]['flag'] = "Success";
 				$dataArr[0]['groupposts'] = $feeds;
+				$tempmembers = array();
+				foreach ($groupUsers as $list) {
+					unset($list['user_register_type']);
+					$list['profile_photo'] = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
+
+					$friend_status ="";
+					if($list['is_friend']){
+						$friend_status = 'IsFriend';
+					}
+					else if($list['is_requested']){
+						$friend_status = 'AccessUserRequested';
+					}
+					else if($list['get_request']){
+						$friend_status = 'GroupUserRequested';
+					}
+					else if ( $user_id == $list['user_id']){
+						$friend_status = '';
+					}else{
+						$friend_status = 'NoFriends';
+					}
+					$list['friend_status']= $friend_status;
+					unset($list['is_friend']);
+					unset($list['is_requested']);
+					unset($list['get_request']);
+
+					$tempmembers[] = $list;
+				}
+				$dataArr[0]['groupmembers'] = $tempmembers;
 				echo json_encode($dataArr);
 				exit; 
 			}else{

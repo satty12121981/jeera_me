@@ -52,8 +52,11 @@ class UserGroupTable extends AbstractTableGateway
 			'get_request'=>new Expression('IF(EXISTS(SELECT * FROM   y2m_user_friend_request WHERE  ( y2m_user_friend_request.user_friend_request_sender_user_id = y2m_user_group.user_group_user_id AND y2m_user_friend_request.user_friend_request_friend_user_id = '.$user_id.' AND y2m_user_friend_request.user_friend_request_status = 0) ),1,0)'),
 			'user_group_status' =>'user_group_status',
 			))
-			->join('y2m_user', 'y2m_user.user_id = y2m_user_group.user_group_user_id', array('user_given_name','user_id','user_profile_name','user_register_type','user_fbid'))
+			->join('y2m_user', 'y2m_user.user_id = y2m_user_group.user_group_user_id', array('user_given_name','user_id','user_profile_name','user_first_name','user_last_name','user_register_type','user_fbid'))
 			->join('y2m_user_profile_photo','y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id',array('profile_photo'),'left')
+			->join('y2m_user_profile', 'y2m_user_profile.user_profile_user_id = y2m_user_group.user_group_user_id', array('user_profile_country_id','user_profile_city_id'))
+			->join("y2m_country","y2m_country.country_id = y2m_user_profile.user_profile_country_id",array("country_code_googlemap","country_title","country_code"),'left')
+			->join("y2m_city","y2m_city.city_id = y2m_user_profile.user_profile_city_id",array("city"=>"name"),'left')
 			 
 			->where(array('y2m_user_group.user_group_group_id' => $group_id));
 			if($search_string!=''){

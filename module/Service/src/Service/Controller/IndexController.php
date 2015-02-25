@@ -42,6 +42,13 @@ class IndexController extends AbstractActionController
 	protected $groupTable;
 	protected $userTagTable;
 	protected $RecoveryemailsTable;
+	protected $activityTable;
+	protected $likeTable;
+	protected $activityRsvpTable;
+    protected $commentTable;
+    protected $groupMediaTable;
+    protected $discussionTable;
+    
 	protected $WEB_STAMPTIME;
 	
 	public function init(){
@@ -538,7 +545,7 @@ class IndexController extends AbstractActionController
 							}
 							if (!empty($media->media_content))
 								$media->media_content = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
-							$media_details = array(
+								$media_details = array(
 												"group_media_id" => $media->group_media_id,
 												"media_type" => $media->media_type,
 												"media_content" => $media->media_content,
@@ -554,15 +561,16 @@ class IndexController extends AbstractActionController
 												"is_commented"	=>$comment_details['is_commented'],
 												"userprofiledetails" =>$userprofiledetails,												
 												);
-							$feeds[] = array('content' => $media_details,
+								$feeds[] = array('content' => $media_details,
 											'type'=>$list['type'],
 											'time'=>$this->timeAgo($list['update_time']),
-							); 
+								); 
 						break;
 					}
 				}
 				$dataArr[0]['flag'] = "Success";
-				$dataArr[0]['groupposts'] = $feeds;
+				$dataArr[0]['usergroupposts'] = $feeds;
+				
 				echo json_encode($dataArr);
 				exit; 
 			}else{
@@ -578,6 +586,19 @@ class IndexController extends AbstractActionController
 			echo json_encode($dataArr);
 			exit;
 		}
+	}
+
+	public function manipulateProfilePic($user_id, $profile_photo = null, $fb_id = null){
+    	$config = $this->getServiceLocator()->get('Config');
+		$return_photo = null;
+		if (!empty($profile_photo))
+			$return_photo = $config['pathInfo']['absolute_img_path'].$config['image_folders']['profile_path'].$user_id.'/'.$profile_photo;
+		else if(isset($fb_id) && !empty($fb_id))
+			$return_photo = 'http://graph.facebook.com/'.$fb_id.'/picture?type=normal';
+		else
+			$return_photo = $config['pathInfo']['absolute_img_path'].'/images/noimg.jpg';
+		return $return_photo;
+
 	}
 		
 	public function loginaccessAction(){
@@ -680,6 +701,72 @@ class IndexController extends AbstractActionController
         $set_timestamp = date("Y-m-d H:i", $futureDate);
         return $set_timestamp;
     }
+
+    public function timeAgo($time_ago){ //echo $time_ago;die();
+		$time_ago = strtotime($time_ago);
+		$cur_time   = time();
+		$time_elapsed   = $cur_time - $time_ago;
+		$seconds    = $time_elapsed ;
+		$minutes    = round($time_elapsed / 60 );
+		$hours      = round($time_elapsed / 3600);
+		$days       = round($time_elapsed / 86400 );
+		$weeks      = round($time_elapsed / 604800);
+		$months     = round($time_elapsed / 2600640 );
+		$years      = round($time_elapsed / 31207680 );
+		// Seconds
+		if($seconds <= 60){
+			return "just now";
+		}
+		//Minutes
+		else if($minutes <=60){
+			if($minutes==1){
+				return "one minute ago";
+			}
+			else{
+				return "$minutes minutes ago";
+			}
+		}
+		//Hours
+		else if($hours <=24){
+			if($hours==1){
+				return "an hour ago";
+			}else{
+				return "$hours hrs ago";
+			}
+		}
+		//Days
+		else if($days <= 7){
+			if($days==1){
+				return "yesterday";
+			}else{
+				return "$days days ago";
+			}
+		}
+		//Weeks
+		else if($weeks <= 4.3){
+			if($weeks==1){
+				return "a week ago";
+			}else{
+				return "$weeks weeks ago";
+			}
+		}
+		//Months
+		else if($months <=12){
+			if($months==1){
+				return "a month ago";
+			}else{
+				return "$months months ago";
+			}
+		}
+		//Years
+		else{
+			if($years==1){
+				return "one year ago";
+			}else{
+				return "$years years ago";
+			}
+		}
+	}
 		
 	public function logoutAction(){
 		$request = $this->getRequest();
@@ -958,7 +1045,7 @@ class IndexController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 		return  $this->userFriendTable = (!$this->userFriendTable)?$sm->get('User\Model\UserFriendTable'):$this->userFriendTable;    
 	}
-
+	
 	public function getGroupsTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->groupTable = (!$this->groupTable)?$sm->get('Groups\Model\GroupsTable'):$this->groupTable;    
@@ -978,5 +1065,31 @@ class IndexController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 		return $this->RecoveryemailsTable =(!$this->RecoveryemailsTable)?$sm->get('User\Model\RecoveryemailsTable'):$this->RecoveryemailsTable;
 	}
+	public function getActivityTable(){
+		$sm = $this->getServiceLocator();
+		return  $this->activityTable = (!$this->activityTable)?$sm->get('Activity\Model\ActivityTable'):$this->activityTable;    
+    }
+	public function getDiscussionTable(){
+		$sm = $this->getServiceLocator();
+		return  $this->discussionTable = (!$this->discussionTable)?$sm->get('Discussion\Model\DiscussionTable'):$this->discussionTable;    
+    }
+	public function getGroupMediaTable(){
+		$sm = $this->getServiceLocator();
+		return  $this->groupMediaTable = (!$this->groupMediaTable)?$sm->get('Groups\Model\GroupMediaTable'):$this->groupMediaTable;    
+    }
+	public function getLikeTable(){
+		$sm = $this->getServiceLocator();
+		return  $this->likeTable = (!$this->likeTable)?$sm->get('Like\Model\LikeTable'):$this->likeTable; 
+	}
+	public function getCommentTable(){
+		$sm = $this->getServiceLocator();
+		return  $this->commentTable = (!$this->commentTable)?$sm->get('Comment\Model\CommentTable'):$this->commentTable;   
+	}
+	public function getActivityRsvpTable(){
+		$sm = $this->getServiceLocator();
+		return  $this->activityRsvpTable = (!$this->activityRsvpTable)?$sm->get('Activity\Model\ActivityRsvpTable'):$this->activityRsvpTable;
+    }
+
+
 	
 }

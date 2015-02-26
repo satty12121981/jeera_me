@@ -106,9 +106,10 @@ class GroupsController extends AbstractActionController
 	public function groupdetailsAction(){
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
+			$flag=0;
 			$config = $this->getServiceLocator()->get('Config');
 			$postedValues = $this->getRequest()->getPost();
-			$str = $this->getRequest()->getContent();
+			
 			$offset = trim($postedValues['nparam']);
 			$limit = trim($postedValues['countparam']);
 			$type = trim($postedValues['type']);
@@ -118,7 +119,7 @@ class GroupsController extends AbstractActionController
 
 			if ((!isset($accToken)) || (trim($accToken) == '')) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Request Not Authorised.";
+				$dataArr[0]['message'] = "Request Not Autdhorised.";
 				echo json_encode($dataArr);
 				exit;
 			}
@@ -155,6 +156,93 @@ class GroupsController extends AbstractActionController
 			}
 			$user_id = $user_details->user_id;
 			$newsfeedsList = $this->getGroupsTable()->getGroupNewsFeeds($user_id,$type,$group_id,$activity,(int) $limit,(int) $offset);
+			$groupdetailslist  = $this->getGroupsTable()->getGroupDetails($group_id,$user_id);	
+			$arr_group_list = array();
+			$feeds = array();
+			if (!empty($groupdetailslist)){
+				if (!empty($groupdetailslist->group_photo_photo))
+				$groupdetailslist->group_photo_photo = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$groupdetailslist->group_id.'/medium/'.$groupdetailslist->group_photo_photo;
+				else
+				$groupdetailslist->group_photo_photo = $config['pathInfo']['absolute_img_path'].'/images/group-img_def.jpg';
+				$tag_category = $this->getGroupTagTable()->getAllGroupTagCategiry($groupdetailslist->group_id);
+				$tags = $this->getGroupTagTable()->fetchAllGroupTags($groupdetailslist->group_id);
+				$temptags = array();
+				$tag_category_temp = array();
+				foreach($tags as $tags_list){
+					unset($tags_list['group_tag_id']);
+					unset($tags_list['group_tag_group_id']);
+					unset($tags_list['group_tag_tag_id']);
+					unset($tags_list['group_tag_added_timestamp']);
+					unset($tags_list['group_tag_added_ip_address']);
+					$temptags[] = $tags_list;
+				}
+				$tags = $temptags;
+				foreach($tag_category as $tag_category_list){
+					unset($tag_category_list['group_tag_id']);
+					unset($tag_category_list['group_tag_group_id']);
+					unset($tag_category_list['group_tag_tag_id']);
+					unset($tag_category_list['group_tag_added_timestamp']);
+					unset($tag_category_list['group_tag_added_ip_address']);
+
+					if (!empty($tag_category_list['tag_category_icon']))
+					$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
+					else
+					$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
+					$tag_category_temp[] = $tag_category_list;
+				}
+				$tag_category = $tag_category_temp;
+				
+				$arr_group_list[] = array(
+					'group_id' =>$groupdetailslist->group_id,
+					'group_title' =>$groupdetailslist->group_title,
+					'group_seo_title' =>$groupdetailslist->group_seo_title,
+					'group_type' =>(empty($groupdetailslist->group_type))?"":$groupdetailslist->group_type,
+					'group_photo_photo' =>$groupdetailslist->group_photo_photo,										 
+					'country_title' =>$groupdetailslist->country_title,
+					'country_code' =>$groupdetailslist->country_code,
+					'member_count' =>$groupdetailslist->member_count,
+					'friend_count' =>$groupdetailslist->friend_count,
+					'city' =>$groupdetailslist->city,	
+					'tag_category_count' =>count($tag_category),
+					'tag_category' =>$tag_category,
+					'tags' =>$tags,
+					);
+				$flag = 1;
+			}
+
+			$groupUsers = $this->getUserGroupTable()->fetchAllUserListForGroup($group_id,$user_id,0,5)->toArray();
+			$tempmembers = array();
+			if (!empty($groupUsers)) {
+				
+				foreach ($groupUsers as $list) {
+					unset($list['user_register_type']);
+					$list['profile_photo'] = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
+
+					$friend_status ="";
+					if($list['is_friend']){
+						$friend_status = 'IsFriend';
+					}
+					else if($list['is_requested']){
+						$friend_status = 'AccessUserRequested';
+					}
+					else if($list['get_request']){
+						$friend_status = 'GroupUserRequested';
+					}
+					else if ( $user_id == $list['user_id']){
+						$friend_status = '';
+					}else{
+						$friend_status = 'NoFriends';
+					}
+					$list['friend_status']= $friend_status;
+					unset($list['is_friend']);
+					unset($list['is_requested']);
+					unset($list['get_request']);
+
+					$tempmembers[] = $list;
+				}
+				$flag = 1;
+			}
+
 			if(!empty($newsfeedsList)){
 				foreach($newsfeedsList as $list){
 					$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
@@ -183,22 +271,30 @@ class GroupsController extends AbstractActionController
 						$like_details     = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
 						$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
 						$str_liked_users  = '';
-						$arr_likedUsers = array(); 
+						
 						if(!empty($like_details)&&isset($like_details['likes_counts'])){  
 							$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-							if($like_details['is_liked']==1){
-								$arr_likedUsers[] = 'you';
-							}
-							if($like_details['likes_counts']>0&&!empty($liked_users)){
-								foreach($liked_users as $likeuser){
-									$arr_likedUsers[] = $likeuser['user_given_name'];
-								}
-							}
 						}
 						$rsvp_count = $this->getActivityRsvpTable()->getCountOfAllRSVPuser($activity->group_activity_id)->rsvp_count;
 						$attending_users = array();
+						$tempattendusers =  array();
 						if($rsvp_count>0){
 							$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
+						}
+						if (count($attending_users)){
+							foreach ($attending_users as $attendlist) {
+								unset($attendlist['group_activity_rsvp_id']);
+								unset($attendlist['group_activity_rsvp_user_id']);
+								unset($attendlist['group_activity_rsvp_activity_id']);
+								unset($attendlist['group_activity_rsvp_added_timestamp']);
+								unset($attendlist['group_activity_rsvp_added_ip_address']);
+								unset($attendlist['group_activity_rsvp_group_id']);
+
+								$attendlist['profile_photo'] = $this->manipulateProfilePic($attendlist['user_id'], $attendlist['profile_photo'], $attendlist['user_fbid']);
+          				
+								$tempattendusers[]=$attendlist;
+							}
+							$attending_users = $tempattendusers;
 						}
 						$activity_details = array(
 												"group_activity_id" => $activity->group_activity_id,
@@ -215,7 +311,6 @@ class GroupsController extends AbstractActionController
 												"is_liked"	=>$like_details['is_liked'],
 												"comment_counts"	=>$comment_details['comment_counts'],
 												"is_commented"	=>$comment_details['is_commented'],
-												"liked_users"	=>$arr_likedUsers,
 												"rsvp_count" =>($activity->rsvp_count)?$activity->rsvp_count:0,
 												"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
 												"is_going"=>$activity->is_going,
@@ -234,18 +329,8 @@ class GroupsController extends AbstractActionController
 							$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
 							$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
 							$str_liked_users = '';
-							$arr_likedUsers = array();
 							if(!empty($like_details)&&isset($like_details['likes_counts'])){  
 								$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-								
-								if($like_details['is_liked']==1){
-									$arr_likedUsers[] = 'you';
-								}
-								if($like_details['likes_counts']>0&&!empty($liked_users)){
-									foreach($liked_users as $likeuser){
-										$arr_likedUsers[] = $likeuser['user_given_name'];
-									}
-								}
 							}
 							$discussion_details = array(
 												"group_discussion_id" => $discussion->group_discussion_id,
@@ -255,7 +340,6 @@ class GroupsController extends AbstractActionController
 												"group_id" =>$list['group_id'],												
 												"like_count"	=>$like_details['likes_counts'],
 												"is_liked"	=>$like_details['is_liked'],
-												"liked_users"	=>$arr_likedUsers,
 												"comment_counts"	=>$comment_details['comment_counts'],
 												"is_commented"	=>$comment_details['is_commented'],
 												"userprofiledetails" =>$userprofiledetails,
@@ -275,17 +359,8 @@ class GroupsController extends AbstractActionController
 							$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
 							$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
 							$str_liked_users = '';
-							$arr_likedUsers = array();
 							if(!empty($like_details)&&isset($like_details['likes_counts'])){  
 								$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-								if($like_details['is_liked']==1){
-									$arr_likedUsers[] = 'you';
-								}
-								if($like_details['likes_counts']>0&&!empty($liked_users)){
-									foreach($liked_users as $likeuser){
-										$arr_likedUsers[] = $likeuser['user_given_name'];
-									}
-								}
 							}
 							if (!empty($media->media_content))
 								$media->media_content = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
@@ -300,7 +375,6 @@ class GroupsController extends AbstractActionController
 												"group_id" =>$list['group_id'],													
 												"like_count"	=>$like_details['likes_counts'],
 												"is_liked"	=>$like_details['is_liked'],	
-												"liked_users"	=>$arr_likedUsers,	
 												"comment_counts"	=>$comment_details['comment_counts'],
 												"is_commented"	=>$comment_details['is_commented'],
 												"userprofiledetails" =>$userprofiledetails,												
@@ -312,40 +386,17 @@ class GroupsController extends AbstractActionController
 						break;
 					}
 				}
-				$groupUsers = $this->getUserGroupTable()->fetchAllUserListForGroup($group_id,$user_id,0,5)->toArray();
+			}
+
+			if($flag){
 				$dataArr[0]['flag'] = "Success";
-				$dataArr[0]['groupposts'] = $feeds;
-				$tempmembers = array();
-				foreach ($groupUsers as $list) {
-					unset($list['user_register_type']);
-					$list['profile_photo'] = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
-
-					$friend_status ="";
-					if($list['is_friend']){
-						$friend_status = 'IsFriend';
-					}
-					else if($list['is_requested']){
-						$friend_status = 'AccessUserRequested';
-					}
-					else if($list['get_request']){
-						$friend_status = 'GroupUserRequested';
-					}
-					else if ( $user_id == $list['user_id']){
-						$friend_status = '';
-					}else{
-						$friend_status = 'NoFriends';
-					}
-					$list['friend_status']= $friend_status;
-					unset($list['is_friend']);
-					unset($list['is_requested']);
-					unset($list['get_request']);
-
-					$tempmembers[] = $list;
-				}
+				$dataArr[0]['groupdetails'] = $arr_group_list;
 				$dataArr[0]['groupmembers'] = $tempmembers;
+				$dataArr[0]['groupposts'] = $feeds;
 				echo json_encode($dataArr);
 				exit; 
-			}else{
+			}
+			else{
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "No details available.";
 				echo json_encode($dataArr);

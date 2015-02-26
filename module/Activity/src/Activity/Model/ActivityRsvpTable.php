@@ -82,7 +82,10 @@ class ActivityRsvpTable extends AbstractTableGateway
 		$mainSelect = new Select;
 		$mainSelect->from('y2m_group_activity_rsvp')
 				->join("y2m_user", 'y2m_user.user_id = y2m_group_activity_rsvp.group_activity_rsvp_user_id',array('user_given_name','user_first_name','user_last_name','user_id','user_profile_name','user_register_type','user_fbid'))
-		->join('y2m_user_profile_photo','y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id',array('profile_photo'),'left')			 
+				->join('y2m_user_profile_photo','y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id',array('profile_photo'),'left')			 
+				->join('y2m_user_profile', 'y2m_user_profile.user_profile_user_id = y2m_group_activity_rsvp.group_activity_rsvp_user_id', array('user_profile_country_id','user_profile_city_id'))
+				->join("y2m_country","y2m_country.country_id = y2m_user_profile.user_profile_country_id",array("country_code_googlemap","country_title","country_code"),'left')
+				->join("y2m_city","y2m_city.city_id = y2m_user_profile.user_profile_city_id",array("city"=>"name"),'left')
 				->where(array('y2m_group_activity_rsvp.group_activity_rsvp_activity_id' => $activity_id));
 		if($limit!='All'){
 		$mainSelect->limit($limit);

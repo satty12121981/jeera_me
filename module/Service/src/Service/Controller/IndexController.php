@@ -439,22 +439,26 @@ class IndexController extends AbstractActionController
 						$like_details     = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
 						$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
 						$str_liked_users  = '';
-						$arr_likedUsers = array(); 
-						if(!empty($like_details)&&isset($like_details['likes_counts'])){  
-							$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-							if($like_details['is_liked']==1){
-								$arr_likedUsers[] = 'you';
-							}
-							if($like_details['likes_counts']>0&&!empty($liked_users)){
-								foreach($liked_users as $likeuser){
-									$arr_likedUsers[] = $likeuser['user_given_name'];
-								}
-							}
-						}
+						
 						$rsvp_count = $this->getActivityRsvpTable()->getCountOfAllRSVPuser($activity->group_activity_id)->rsvp_count;
 						$attending_users = array();
 						if($rsvp_count>0){
 							$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
+						}
+						if (count($attending_users)){
+							foreach ($attending_users as $attendlist) {
+								unset($attendlist['group_activity_rsvp_id']);
+								unset($attendlist['group_activity_rsvp_user_id']);
+								unset($attendlist['group_activity_rsvp_activity_id']);
+								unset($attendlist['group_activity_rsvp_added_timestamp']);
+								unset($attendlist['group_activity_rsvp_added_ip_address']);
+								unset($attendlist['group_activity_rsvp_group_id']);
+
+								$attendlist['profile_photo'] = $this->manipulateProfilePic($attendlist['user_id'], $attendlist['profile_photo'], $attendlist['user_fbid']);
+          				
+								$tempattendusers[]=$attendlist;
+							}
+							$attending_users = $tempattendusers;
 						}
 						$activity_details = array(
 												"group_activity_id" => $activity->group_activity_id,
@@ -471,7 +475,6 @@ class IndexController extends AbstractActionController
 												"is_liked"	=>$like_details['is_liked'],
 												"comment_counts"	=>$comment_details['comment_counts'],
 												"is_commented"	=>$comment_details['is_commented'],
-												"liked_users"	=>$arr_likedUsers,
 												"rsvp_count" =>($activity->rsvp_count)?$activity->rsvp_count:0,
 												"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
 												"is_going"=>$activity->is_going,
@@ -490,19 +493,7 @@ class IndexController extends AbstractActionController
 							$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
 							$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
 							$str_liked_users = '';
-							$arr_likedUsers = array();
-							if(!empty($like_details)&&isset($like_details['likes_counts'])){  
-								$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-								
-								if($like_details['is_liked']==1){
-									$arr_likedUsers[] = 'you';
-								}
-								if($like_details['likes_counts']>0&&!empty($liked_users)){
-									foreach($liked_users as $likeuser){
-										$arr_likedUsers[] = $likeuser['user_given_name'];
-									}
-								}
-							}
+							
 							$discussion_details = array(
 												"group_discussion_id" => $discussion->group_discussion_id,
 												"group_discussion_content" => $discussion->group_discussion_content,
@@ -511,7 +502,6 @@ class IndexController extends AbstractActionController
 												"group_id" =>$list['group_id'],												
 												"like_count"	=>$like_details['likes_counts'],
 												"is_liked"	=>$like_details['is_liked'],
-												"liked_users"	=>$arr_likedUsers,
 												"comment_counts"	=>$comment_details['comment_counts'],
 												"is_commented"	=>$comment_details['is_commented'],
 												"userprofiledetails" =>$userprofiledetails,
@@ -531,18 +521,7 @@ class IndexController extends AbstractActionController
 							$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
 							$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
 							$str_liked_users = '';
-							$arr_likedUsers = array();
-							if(!empty($like_details)&&isset($like_details['likes_counts'])){  
-								$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
-								if($like_details['is_liked']==1){
-									$arr_likedUsers[] = 'you';
-								}
-								if($like_details['likes_counts']>0&&!empty($liked_users)){
-									foreach($liked_users as $likeuser){
-										$arr_likedUsers[] = $likeuser['user_given_name'];
-									}
-								}
-							}
+							
 							if (!empty($media->media_content))
 								$media->media_content = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
 								$media_details = array(
@@ -556,7 +535,6 @@ class IndexController extends AbstractActionController
 												"group_id" =>$list['group_id'],													
 												"like_count"	=>$like_details['likes_counts'],
 												"is_liked"	=>$like_details['is_liked'],	
-												"liked_users"	=>$arr_likedUsers,	
 												"comment_counts"	=>$comment_details['comment_counts'],
 												"is_commented"	=>$comment_details['is_commented'],
 												"userprofiledetails" =>$userprofiledetails,												

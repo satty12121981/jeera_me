@@ -125,11 +125,26 @@ class UserTagTable extends AbstractTableGateway
 	}
 	public function deleteAllUserTags($user_id,$tag_list=array()){
 		if(!empty($tag_list)){
-			$sql = "DELETE FROM y2m_user_tag WHERE user_tag_user_id = ".$user_id." AND user_tag_tag_id NOT IN (".implode(',',$tag_list).")"; 
+			echo $sql = "DELETE FROM y2m_user_tag WHERE user_tag_user_id = ".$user_id." AND user_tag_tag_id NOT IN (".implode(',',$tag_list).")"; 
 			$statement = $this->adapter-> query($sql); 
 			$statement -> execute();
 		}else{ 	$this->delete(array('user_tag_user_id' => $user_id)); }		
 	}
+
+	public function deleteAllUserTagsForRestAPI($user_id,$tag_list=array()){
+		if(!empty($tag_list)){
+			$sql = "DELETE FROM y2m_user_tag WHERE user_tag_user_id = ".$user_id." AND user_tag_tag_id IN (".implode(',',$tag_list).")"; 
+			$statement = $this->adapter-> query($sql); 
+			try {
+		        $result = $statement->execute();        // works fine
+		    } catch (\Exception $e) {
+		        die('Error: ' . $e->getMessage());
+		    }
+    		return $result->count();    
+		}
+		return;
+	}
+
 	public function getAllUserTagsWithIds($user_id){
 		$select = new Select;
 		$select->from('y2m_user_tag')

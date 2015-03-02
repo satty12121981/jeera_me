@@ -103,6 +103,7 @@ return array(
         'invokables' => array(
             'Service\Controller\Index' => 'Service\Controller\IndexController',
             'Service\Controller\Groups' => 'Service\Controller\GroupsController',          
+            'Service\Controller\Profile' => 'Service\Controller\ProfileController',          
         ),
     ),   
     

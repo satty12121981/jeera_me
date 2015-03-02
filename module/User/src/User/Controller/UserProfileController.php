@@ -88,7 +88,7 @@ class UserProfileController extends AbstractActionController
 			}
 		}else{return $this->redirect()->toRoute('home', array('action' => 'index'));}
 	}
-	public 	function profileAction(){
+	public function profileAction(){
 		$error = '';
 		$auth = new AuthenticationService();
 		$viewModel = new ViewModel();

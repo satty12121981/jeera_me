@@ -21,66 +21,68 @@ class ProfileController extends AbstractActionController
         $this->flagSuccess = "Success";
 		$this->flagError = "Failure";
 	}
-	public function ProfileEditAction(){
+	public function ListUserInterestsAction(){
+		$error = '';
+		$user_tags = array();
+		$userIntrests = array();
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
 			$config = $this->getServiceLocator()->get('Config');
+			$dataArr = array();	
 			$postedValues = $this->getRequest()->getPost();
-			$str = $this->getRequest()->getContent();
-			$offset = trim($postedValues['nparam']);
-			$limit = trim($postedValues['countparam']);
 			$accToken = strip_tags(trim($postedValues['accesstoken']));
+			
 			if ((!isset($accToken)) || (trim($accToken) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Request Not Authorised.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			if (isset($limit) && !is_numeric($limit)) {
- 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid Count Field.";
-				echo json_encode($dataArr);
-				exit;		
-			}
-			if (isset($offset) && !is_numeric($offset)) {
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid N Field.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
-			if (empty($user_details)){
+			
+			$userinfo = $this->getUserTable()->getUserByAccessToken($accToken);
+			if(empty($userinfo)){
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Invalid Access Token.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			$ProfileEditList = $this->getProfileEditTable()->generalGroupList((int) $limit,(int) $offset,$user_details->user_id);
-			foreach($ProfileEditList as $list){
-				if (!empty($list['group_photo_photo']))
-					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
-				else
-					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].'/images/group-img_def.jpg';
-				$temp[]=$list;
-			}
-			$dataArr[0]['flag'] = "Success";
-			$dataArr[0]['userProfileEdit']= $temp;
-			echo json_encode($dataArr);
-			exit;
-		}else{
+			$user_id = $userinfo->user_id;
+			$userInterests = $this->getUserTagTable()->getAllUserTags($user_id);
+			if(!empty($userInterests)){
+				foreach($userInterests as $tag_category_list){
+					if (!empty($tag_category_list['tag_category_icon']))
+					$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
+					else
+					$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
+					$tag_category_temp[] = $tag_category_list;
+				}
+				$userInterests = $tag_category_temp;
+				$dataArr[0]['flag'] = "Success";
+				$dataArr[0]['userinterests'] = $userInterests;
+				echo json_encode($dataArr);
+				exit;
+			} else {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "No Tags(s) to the user.";
+				echo json_encode($dataArr);
+				exit;
+			}	
+		} else {
 			$dataArr[0]['flag'] = "Failure";
-			$dataArr[0]['message'] = "Request Not Authorised.";
+			$dataArr[0]['message'] = "Request not authorised.";
 			echo json_encode($dataArr);
 			exit;
 		}
-    }
 
+	}
+	
     public function EditUserInterestsAction(){
     	$error = '';
 		$user_tags = array();
 		$userIntrests = array();
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
+			$config = $this->getServiceLocator()->get('Config');
 			$dataArr = array();	
 			$postedValues = $this->getRequest()->getPost();
 			$accToken = strip_tags(trim($postedValues['accesstoken']));
@@ -124,10 +126,22 @@ class ProfileController extends AbstractActionController
 					}							
 				}
 				if($flag){
-					$dataArr[0]['flag'] = "Success";
-					$dataArr[0]['message'] = "Tag(s) added to user.";
-					echo json_encode($dataArr);
-					exit;
+					$userInterests = $this->getUserTagTable()->getAllUserTags($userinfo->user_id);
+					if(!empty($userInterests)){
+						foreach($userInterests as $tag_category_list){
+							if (!empty($tag_category_list['tag_category_icon']))
+							$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
+							else
+							$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
+							$tag_category_temp[] = $tag_category_list;
+						}
+						
+						$userInterests = $tag_category_temp;
+						$dataArr[0]['flag'] = "Success";
+						$dataArr[0]['userinterests'] = $userInterests;
+						echo json_encode($dataArr);
+						exit;
+					}
 				}else{
 					$dataArr[0]['flag'] = "Failure";
 					$dataArr[0]['message'] = "Tag(s) already added to the user .";
@@ -141,14 +155,15 @@ class ProfileController extends AbstractActionController
 			echo json_encode($dataArr);
 			exit;
 		}
-		
     }
+
     public function DeleteUserInterestsAction(){
     	$error = '';
 		$user_tags = array();
 		$userIntrests = array();
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
+			$config = $this->getServiceLocator()->get('Config');
 			$dataArr = array();	
 			$postedValues = $this->getRequest()->getPost();
 			$accToken = strip_tags(trim($postedValues['accesstoken']));
@@ -173,15 +188,32 @@ class ProfileController extends AbstractActionController
 				exit;
 			}
 			$user_id = $userinfo->user_id;
-			$objUser = new User();
+			$tag_category_temp = array();
 			$flag =0;
 			if(isset($edit_user_tags[0]) && !empty($edit_user_tags[0])){
 				$edit_user_tags = explode(",", $edit_user_tags[0]);
-				if ($this->getUserTagTable()->deleteAllUserTagsForRestAPI($user_id,$edit_user_tags)){
-					$dataArr[0]['flag'] = "Success";
-					$dataArr[0]['message'] = "Tag(s) deleted to the user .";
-					echo json_encode($dataArr);
-					exit;
+				if ($this->getUserTagTable()->deleteAllUserTagsForRestAPI($user_id,array_filter($edit_user_tags))){
+					$userInterests = $this->getUserTagTable()->getAllUserTags($userinfo->user_id);
+					if(!empty($userInterests)){
+						foreach($userInterests as $tag_category_list){
+							if (!empty($tag_category_list['tag_category_icon']))
+							$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
+							else
+							$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
+							$tag_category_temp[] = $tag_category_list;
+						}
+						
+						$userInterests = $tag_category_temp;
+						$dataArr[0]['flag'] = "Success";
+						$dataArr[0]['userinterests'] = $userInterests;
+						echo json_encode($dataArr);
+						exit;
+					} else {
+						$dataArr[0]['flag'] = "Failure";
+						$dataArr[0]['message'] = "No Tag(s) to the user.";
+						echo json_encode($dataArr);
+						exit;
+					}	
 				}else{
 					$dataArr[0]['flag'] = "Failure";
 					$dataArr[0]['message'] = "Tag(s) does not exists for the user .";

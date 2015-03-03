@@ -21,7 +21,7 @@ class ProfileController extends AbstractActionController
         $this->flagSuccess = "Success";
 		$this->flagError = "Failure";
 	}
-	public function ListUserInterestsAction(){
+	public function ListUserTagsAction(){
 		$error = '';
 		$user_tags = array();
 		$userIntrests = array();
@@ -73,10 +73,8 @@ class ProfileController extends AbstractActionController
 			echo json_encode($dataArr);
 			exit;
 		}
-
 	}
-	
-    public function EditUserInterestsAction(){
+    public function AddUserTagsAction(){
     	$error = '';
 		$user_tags = array();
 		$userIntrests = array();
@@ -156,8 +154,7 @@ class ProfileController extends AbstractActionController
 			exit;
 		}
     }
-
-    public function DeleteUserInterestsAction(){
+    public function DeleteUserTagsAction(){
     	$error = '';
 		$user_tags = array();
 		$userIntrests = array();
@@ -221,15 +218,87 @@ class ProfileController extends AbstractActionController
 					exit;
 				}
 			}
-				
 		}else {
 			$dataArr[0]['flag'] = "Failure";
 			$dataArr[0]['message'] = "Request not authorised.";
 			echo json_encode($dataArr);
 			exit;
 		}
-		
     }
+    public function ListAllTagsAction() {
+    	$request = $this->getRequest();
+		if($this->getRequest()->getMethod() == 'POST') {
+			$config = $this->getServiceLocator()->get('Config');
+			$dataArr = array();	
+			$postedValues = $this->getRequest()->getPost();
+			$accToken = strip_tags(trim($postedValues['accesstoken']));
+			$category = (isset($postedValues['category'])&&$postedValues['category']!=null&&$postedValues['category']!=''&&$postedValues['category']!='undefined')?$postedValues['category']:'';
+			$search_string = (isset($postedValues['search'])&&$postedValues['search']!=null&&$postedValues['search']!=''&&$postedValues['search']!='undefined')?strip_tags(trim($postedValues['search'])):'';
+			if ((!isset($accToken)) || (trim($accToken) == '')) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Request Not Authorised.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			if (!empty($category) && !is_numeric($category)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid Category.";
+				echo json_encode($dataArr);
+				exit;		
+			}
+			$userinfo = $this->getUserTable()->getUserByAccessToken($accToken);
+			if(empty($userinfo)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Invalid Access Token.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			$taglistdata = $this->getTagTable()->getAllTagsWithCategories($category,$search_string);
+
+			if(!empty($taglistdata)){
+				$objarrtagsList = array();
+				$loadtagslist = array();
+				foreach($taglistdata as $index => $tagslist){
+					$temptags = explode(",", $tagslist['tag_title']);
+					$arr_tags[0] = array();
+					foreach($temptags as $indexes => $splitlist){
+						$arr_tags = array();
+						$arr_tags = explode("|", $splitlist);
+        				$objarr_tags[] = array('tag_id'=>$arr_tags[0],'tag_title'=>$arr_tags[1]);
+        			}
+					
+					if (!empty($splitlist['tag_category_icon']))
+					$tagslist['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tagslist['tag_category_icon'];
+					else
+					$tagslist['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
+
+        			$loadtagslist[] = array(
+						'category_id' =>$tagslist['category_id'],
+						'category_title' =>$tagslist['tag_category_title'],
+						'tag_category_icon' =>$tagslist['tag_category_icon'],
+						'tag_category_desc' =>$tagslist['tag_category_desc'],
+						'tagslist' =>$objarr_tags,
+						);
+					unset($objarr_tags);
+            	}
+				unset($objarrtagsList);
+				$dataArr[0]['flag'] = "Success";
+				$dataArr[0]['tagslist'] = $loadtagslist;
+				echo json_encode($dataArr);
+				exit;
+			}else{
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "No Tags available.";
+				echo json_encode($dataArr);
+				exit;
+			}
+		}else{
+			$dataArr[0]['flag'] = "Failure";
+			$dataArr[0]['message'] = "Request not authorised.";
+			echo json_encode($dataArr);
+			exit;
+		}
+	}
 	public function getUserTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->userTable = (!$this->userTable)?$sm->get('User\Model\UserTable'):$this->userTable;    
@@ -246,5 +315,4 @@ class ProfileController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 		return  $this->userTagTable = (!$this->userTagTable)?$sm->get('Tag\Model\UserTagTable'):$this->userTagTable;    
 	}
-	
 }

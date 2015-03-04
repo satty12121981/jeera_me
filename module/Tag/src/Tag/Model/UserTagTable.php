@@ -54,6 +54,23 @@ class UserTagTable extends AbstractTableGateway
 		$resultSet->initialize($statement->execute());	
 		return $resultSet->toArray(); 
 	}
+	public function getAllUserTagsForAPI($user_id){
+		$select = new Select;
+		$select->from('y2m_user_tag')
+    		->join('y2m_tag', 'y2m_tag.tag_id = y2m_user_tag.user_tag_tag_id',  array('tag_title'=>new Expression( "GROUP_CONCAT(tag_id,'|',tag_title)"),'category_id'=>'category_id'))
+			->join('y2m_tag_category', 'y2m_tag_category.tag_category_id = y2m_tag.category_id', array('tag_category_title', 'tag_category_icon',  'tag_category_desc'))
+			->where(array('y2m_user_tag.user_tag_user_id' => $user_id))
+			->where(array('y2m_tag_category.tag_category_status' => 1))			 
+			->order(array('y2m_tag.tag_title ASC'));	
+
+		$select->group('y2m_tag.category_id');			
+		$statement = $this->adapter->createStatement();
+		$select->prepareStatement($this->adapter, $statement);
+		//echo $select->getSqlString();exit;
+		$resultSet = new ResultSet();
+		$resultSet->initialize($statement->execute());	
+		return $resultSet->toArray(); 
+	}
 	public function saveUserTag(UserTag $tag){
        $data = array(
             'user_tag_user_id' => $tag->user_tag_user_id,

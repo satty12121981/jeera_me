@@ -17,7 +17,7 @@ class CityTable extends AbstractTableGateway
         $this->initialize();
     }   
 	public function selectAllCity($country_id){
-		$select = new Select();
+		$data =  $select = new Select();
         $select->from($this->table);
 		$select->where(array('country_id = '.$country_id));
 		$statement = $this->adapter->createStatement();
@@ -100,19 +100,18 @@ class CityTable extends AbstractTableGateway
 	public function updateCity($data,$city_id){
 		$this->update($data, array('city_id' => $city_id));
 	}
-	public function selectAllCityWithCountry($country_id=null,$city_id=null){
-        $select = new Select();
+	public function selectAllCityWithCountry(){
+        $data = $select = new Select();
+
         $expression = new Expression(
             "GROUP_CONCAT(city_id,'|',name)"
         );
+
         $select->from($this->table);
         $select->columns(array('city_name'=>$expression));
         $select->join(array('y2m_country'=>'y2m_country'),'y2m_city.country_id = y2m_country.country_id',array('country_id','country_code','country_title'));
-        if (!empty($country_id))
-        $select->where(array('y2m_country.country_id'=>$country_id));
-        if (!empty($city_id))
-        $select->where(array('y2m_city.city_id'=>$city_id));
         $select->group('y2m_country.country_id');
+
         $statement = $this->adapter->createStatement();
         $select->prepareStatement($this->adapter, $statement);        
         //echo $select->getSqlString();exit;

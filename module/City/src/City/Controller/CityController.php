@@ -47,24 +47,14 @@ class CityController extends AbstractActionController
 		return $viewModel;
 	}
 	public function loadAllCitiesListAction(){
+
 		$request = $this->getRequest();
+
 		if($this->getRequest()->getMethod() == 'POST') {
-			$postedValues = $this->getRequest()->getPost();
-			$Country_ID = $postedValues['country_id'];
-			$City_ID = $postedValues['city_id'];
-			if(!empty($Country_ID) && !is_numeric($Country_ID)){
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Enter a valid country id.";
-				echo json_encode($dataArr);
-				exit;
-			} 
-			if(!empty($City_ID) &&!is_numeric($City_ID)){
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Enter a valid city id.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			$cities = $this->getCityTable()->selectAllCityWithCountry($Country_ID,$City_ID);
+
+			$cities = $this->getCityTable()->selectAllCityWithCountry();
+			//print_r($cities);
+
 			if(!empty($cities)) {
 				$dataArr[0]['flag'] = "Success";
 				$dataArr[0]['cities'] = $cities;
@@ -95,7 +85,6 @@ class CityController extends AbstractActionController
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "No more cities are available";
 				echo json_encode($dataArr);
-				exit;
 			}
 		}
 		else {

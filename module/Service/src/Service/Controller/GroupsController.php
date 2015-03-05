@@ -55,6 +55,18 @@ class GroupsController extends AbstractActionController
 			$myfriends = (isset($post['myfriends'])&&$post['myfriends']!=null&&$post['myfriends']!=''&&$post['myfriends']!='undefined'&&$post['myfriends']==true)?strip_tags(trim($post['myfriends'])):'';
 			$offset = (isset($post['nparam'])&&$post['nparam']!=null&&$post['nparam']!=''&&$post['nparam']!='undefined')?trim($post['nparam']):0;
 			$limit = (isset($post['countparam'])&&$post['countparam']!=null&&$post['countparam']!=''&&$post['countparam']!='undefined')?trim($post['countparam']):30;
+			if(!empty($country) && !is_numeric($country)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Enter a valid country id.";
+				echo json_encode($dataArr);
+				exit;
+			} 
+			if(!empty($city) &&!is_numeric($city)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Enter a valid city id.";
+				echo json_encode($dataArr);
+				exit;
+			}
 			if (isset($limit) && !is_numeric($limit)) {
  				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Please input a Valid Count Field.";

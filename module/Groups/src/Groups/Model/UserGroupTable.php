@@ -541,10 +541,10 @@ class UserGroupTable extends AbstractTableGateway
 			   ->where('y2m_group.group_id NOT IN (SELECT user_group_group_id FROM y2m_user_group WHERE user_group_user_id = '.$user_id.' )')
 			   ->where(array("y2m_group_tag.group_tag_tag_id IN (SELECT user_tag_tag_id FROM y2m_user_tag WHERE user_tag_user_id = ".$user_id.")"));
 		if($country!=''){
-			$select->where('y2m_country.country_title like "%'.$country.'%"');
+			$select->where(array('y2m_country.country_id'=>$country)) ;
 		}
 		if($city!=''){
-			$select->where('y2m_city.name like "%'.$city.'%"');
+			$select->where(array('y2m_city.city_id'=>$city));
 		}
 
 		if(isset($category[0]) && $category[0] !=''){

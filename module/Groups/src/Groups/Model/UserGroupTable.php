@@ -52,11 +52,8 @@ class UserGroupTable extends AbstractTableGateway
 			'get_request'=>new Expression('IF(EXISTS(SELECT * FROM   y2m_user_friend_request WHERE  ( y2m_user_friend_request.user_friend_request_sender_user_id = y2m_user_group.user_group_user_id AND y2m_user_friend_request.user_friend_request_friend_user_id = '.$user_id.' AND y2m_user_friend_request.user_friend_request_status = 0) ),1,0)'),
 			'user_group_status' =>'user_group_status',
 			))
-			->join('y2m_user', 'y2m_user.user_id = y2m_user_group.user_group_user_id', array('user_given_name','user_id','user_profile_name','user_first_name','user_last_name','user_register_type','user_fbid'))
+			->join('y2m_user', 'y2m_user.user_id = y2m_user_group.user_group_user_id', array('user_given_name','user_id','user_profile_name','user_register_type','user_fbid'))
 			->join('y2m_user_profile_photo','y2m_user.user_profile_photo_id = y2m_user_profile_photo.profile_photo_id',array('profile_photo'),'left')
-			->join('y2m_user_profile', 'y2m_user_profile.user_profile_user_id = y2m_user_group.user_group_user_id', array('user_profile_country_id','user_profile_city_id'))
-			->join("y2m_country","y2m_country.country_id = y2m_user_profile.user_profile_country_id",array("country_code_googlemap","country_title","country_code"),'left')
-			->join("y2m_city","y2m_city.city_id = y2m_user_profile.user_profile_city_id",array("city"=>"name"),'left')
 			 
 			->where(array('y2m_user_group.user_group_group_id' => $group_id));
 			if($search_string!=''){
@@ -455,7 +452,59 @@ class UserGroupTable extends AbstractTableGateway
 		$resultSet->initialize($statement->execute());	
 		return $resultSet->toArray();
 	}
-	public function getmatchGroupsByuserTags($user_id,$city,$country,$myfriends,$category,$limit=0,$offset=0){
+	public function getmatchGroupsByuserTags($user_id,$city,$country,$category,$limit,$offset){
+		$select = new Select;
+		$sub_select = new Select;
+		$sub_select2 = new Select;
+		$sub_select3 = new Select;
+		$sub_select->from('y2m_group')
+				   ->columns(array(new Expression('COUNT(y2m_group.group_id) as member_count'),"group_id"))
+				   ->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_group.group_id = y2m_user_group.user_group_group_id',array());
+		$sub_select->group('y2m_group.group_id');		
+		$sub_select2->from('y2m_user_friend')
+				  ->columns(array('friend_user'=>new Expression('IF(user_friend_sender_user_id='.$user_id.',user_friend_friend_user_id,user_friend_sender_user_id)')))
+				  ->where->equalTo('user_friend_sender_user_id',$user_id)->OR->equalTo('user_friend_friend_user_id',$user_id)
+				 ;
+		$sub_select3->from('y2m_group')
+				   ->columns(array(new Expression('COUNT(y2m_group.group_id) as friend_count'),"group_id"))
+				   ->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_group.group_id = y2m_user_group.user_group_group_id',array())
+				   ->where->in("user_group_user_id",$sub_select2);
+		$sub_select3->group('y2m_group.group_id');		 
+		$select->from('y2m_group')
+			   ->join('y2m_group_tag',"y2m_group_tag.group_tag_group_id = y2m_group.group_id")
+			   ->join('y2m_tag',"y2m_group_tag.group_tag_tag_id = y2m_tag.tag_id")
+			   ->join('y2m_tag_category',"y2m_tag_category.tag_category_id = y2m_tag.category_id")			   
+			   
+			   ->join("y2m_country","y2m_country.country_id = y2m_group.group_country_id",array("country_code_googlemap","country_title","country_code"),'left')
+			   ->join("y2m_city","y2m_city.city_id = y2m_group.group_city_id",array("city"=>"name"),'left')
+			   ->join("y2m_group_photo","y2m_group_photo.group_photo_group_id = y2m_group.group_id",array("group_photo_photo"=>"group_photo_photo"),'left')
+			   ->join(array('temp_member' => $sub_select), 'temp_member.group_id = y2m_group.group_id',array('member_count'),'left')
+			   ->join(array('temp_friends' => $sub_select3), 'temp_friends.group_id = y2m_group.group_id',array('friend_count'),'left')
+			   ->where('y2m_group.group_status = "active"')
+			   ->where('y2m_group.group_id NOT IN (SELECT user_group_group_id FROM y2m_user_group WHERE y2m_user_group.user_group_user_id = '.$user_id.' )')
+			   ->where(array("y2m_group_tag.group_tag_tag_id IN (SELECT user_tag_tag_id FROM y2m_user_tag WHERE user_tag_user_id = $user_id)"));
+		if($country!=''){
+			$select->where('y2m_country.country_title like "%'.$country.'%"');
+		}
+		if($city!=''){
+			$select->where('y2m_city.name like "%'.$city.'%"');
+		}
+		if(!empty($category)){
+			$select->where->in("y2m_tag_category.tag_category_id",$category);
+		}
+		$select->group("y2m_group.group_id");
+		$select->limit($limit);
+		$select->offset($offset);
+		$statement = $this->adapter->createStatement();
+		
+		//echo $select->getSqlString();exit;
+		$select->prepareStatement($this->adapter, $statement);		 
+		$resultSet = new ResultSet();
+		$resultSet->initialize($statement->execute());	
+		return $resultSet->toArray();
+			   
+	}
+	public function getMatchGroupsByUserTagsForRestApi($user_id,$city,$country,$myfriends,$category,$limit=0,$offset=0){
 		$select = new Select;
 		$sub_select = new Select;
 		$sub_select2 = new Select;
@@ -517,6 +566,7 @@ class UserGroupTable extends AbstractTableGateway
 	}
 	public function fetchAllUserGroupCount($user_id,$visitor_id, $strType,$profile_type){ 
         // creating condition for gropu navigations
+         
 	    $select = new Select;
         $select->from('y2m_group')
                ->columns(array(new Expression('COUNT(y2m_group.group_id) as group_count')))
@@ -564,7 +614,7 @@ class UserGroupTable extends AbstractTableGateway
 				   ->where->in("user_group_user_id",$sub_select2);
 		$sub_select3->group('y2m_group.group_id');
 		$select->from('y2m_group')
-			   ->columns(array("group_id","group_title","group_seo_title","group_status","group_type","group_description","group_location","group_city_id","group_country_id","group_location_lat","group_location_lng","group_web_address","group_welcome_message_members",'is_admin'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = y2m_group.group_id AND y2m_user_group.user_group_user_id = '.$visitor_id.' AND y2m_user_group.user_group_is_owner = 1)),1,0)'),
+			   ->columns(array("group_id","group_title","group_seo_title","group_status","group_type",'is_admin'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = y2m_group.group_id AND y2m_user_group.user_group_user_id = '.$visitor_id.' AND y2m_user_group.user_group_is_owner = 1)),1,0)'),
 			   'is_member'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = y2m_group.group_id AND y2m_user_group.user_group_user_id = '.$visitor_id.' AND y2m_user_group.user_group_is_owner = 0)),1,0)'),
 			   'is_requested'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group_joining_request WHERE  (y2m_user_group_joining_request.user_group_joining_request_group_id = y2m_group.group_id AND y2m_user_group_joining_request.user_group_joining_request_user_id = '.$visitor_id.' AND y2m_user_group_joining_request.user_group_joining_request_status = "active")),1,0)')
 			   ))
@@ -600,7 +650,7 @@ class UserGroupTable extends AbstractTableGateway
 		$resultSet->initialize($statement->execute());
 		return $resultSet->toArray(); 
 	}
-	public function deleteOneUserGroup($group_id, $user_id){
+	 public function deleteOneUserGroup($group_id, $user_id){
        return $this->delete(array('user_group_user_id' => $user_id, 'user_group_group_id' => $group_id));
     }
 	public function checkOwner($group_id, $user_id){
@@ -655,9 +705,9 @@ class UserGroupTable extends AbstractTableGateway
 		$group_created_select->group('y2m_user_group.user_group_user_id');
 		$select = new Select;
 		$select->from('y2m_user')
-				->columns(array('user_id','user_given_name','user_profile_name','user_fbid','is_admin'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = '.$group_id.' AND y2m_user_group.user_group_user_id = y2m_user.user_id AND y2m_user_group.user_group_is_owner = 1)),1,0)')))
+				->columns(array('user_id','user_given_name','user_profile_name','user_register_type','user_fbid','is_admin'=>new Expression('IF(EXISTS(SELECT * FROM y2m_user_group WHERE  (y2m_user_group.user_group_group_id = '.$group_id.' AND y2m_user_group.user_group_user_id = y2m_user.user_id AND y2m_user_group.user_group_is_owner = 1)),1,0)')))
 				->join(array('y2m_user_group'=>'y2m_user_group'),'y2m_user.user_id = y2m_user_group.user_group_user_id',array('user_group_is_owner','user_group_role'))
-				->join('y2m_user_profile', 'y2m_user_profile.user_profile_id = y2m_user.user_id', array('*'))
+				->join('y2m_user_profile', 'y2m_user_profile.user_profile_user_id = y2m_user.user_id', array('*'))
 				->join("y2m_country","y2m_country.country_id = y2m_user_profile.user_profile_country_id",array("country_code_googlemap","country_title","country_code"),'left')
 				->join("y2m_city","y2m_city.city_id = y2m_user_profile.user_profile_city_id",array("city"=>"name"),'left')
 				->join("y2m_user_profile_photo","y2m_user_profile_photo.profile_photo_id = y2m_user.user_profile_photo_id",array("profile_icon"=>"profile_photo"),'left')
@@ -686,6 +736,7 @@ class UserGroupTable extends AbstractTableGateway
 		//echo $select->getSqlString();exit;
 		$resultSet->initialize($statement->execute());	
 		return $resultSet->toArray();
+	 
 	}
 	public function getCreatedGroupCount($user_id){
 		$group_created_select = new Select;
@@ -703,6 +754,20 @@ class UserGroupTable extends AbstractTableGateway
 		$row =  $resultSet->current();
 		return $row;
 	}
+	public function getOwnersCount($group_id){
+		$select = new Select;
+		$select->from('y2m_user_group')
+				->columns(array('group_owner_count'=>new Expression('COUNT(user_group_id)')))
+				->where('(user_group_role =1 OR user_group_is_owner=1)')
+				->where(array("y2m_user_group.user_group_group_id"=>$group_id));
+		$statement = $this->adapter->createStatement();
+		$select->prepareStatement($this->adapter, $statement);		 
+		$resultSet = new ResultSet();
+		//echo $select->getSqlString();exit;
+		$resultSet->initialize($statement->execute());	
+		$row =  $resultSet->current();
+		return $row;
+	}
 	public function getUserGroupCount($user_id){
 		$group_select = new Select;
 		$group_select->from('y2m_user_group')
@@ -715,20 +780,6 @@ class UserGroupTable extends AbstractTableGateway
 		$group_select->prepareStatement($this->adapter, $statement);		 
 		$resultSet = new ResultSet();
 		//echo $group_select->getSqlString();exit;
-		$resultSet->initialize($statement->execute());	
-		$row =  $resultSet->current();
-		return $row;
-	}
-	public function getOwnersCount($group_id){
-		$select = new Select;
-		$select->from('y2m_user_group')
-				->columns(array('group_owner_count'=>new Expression('COUNT(user_group_id)')))
-				->where('(user_group_role =1 OR user_group_is_owner=1)')
-				->where(array("y2m_user_group.user_group_group_id"=>$group_id));
-		$statement = $this->adapter->createStatement();
-		$select->prepareStatement($this->adapter, $statement);		 
-		$resultSet = new ResultSet();
-		//echo $select->getSqlString();exit;
 		$resultSet->initialize($statement->execute());	
 		$row =  $resultSet->current();
 		return $row;

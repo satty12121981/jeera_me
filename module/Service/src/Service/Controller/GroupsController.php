@@ -28,72 +28,106 @@ class GroupsController extends AbstractActionController
         $this->flagSuccess = "Success";
 		$this->flagError = "Failure";
 	}
-
-	public function groupslistAction(){
-		$request = $this->getRequest();
-		if($this->getRequest()->getMethod() == 'POST') {
+    public function exploregroupsAction(){
+    	$error = '';
+		$request   = $this->getRequest();
+		if ($request->isPost()){ 
 			$config = $this->getServiceLocator()->get('Config');
-			$postedValues = $this->getRequest()->getPost();
-			$str = $this->getRequest()->getContent();
-			$offset = trim($postedValues['nparam']);
-			$limit = trim($postedValues['countparam']);
-			$accToken = strip_tags(trim($postedValues['accesstoken']));
-
-			if ((!isset($accToken)) || (trim($accToken) == '')) {
+			$post = $request->getPost();
+			$accToken = (isset($post['accesstoken'])&&$post['accesstoken']!=null&&$post['accesstoken']!=''&&$post['accesstoken']!='undefined')?strip_tags(trim($post['accesstoken'])):'';
+			if (empty($accToken)) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Request Not Authorised.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			if (isset($limit) && !is_numeric($limit)) {
- 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid Count Field.";
-				echo json_encode($dataArr);
-				exit;		
-			}
-			if (isset($offset) && !is_numeric($offset)) {
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a valid N Field.";
-				echo json_encode($dataArr);
-				exit;
-			}
 			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
-			if (empty($user_details)){
+			if(empty($user_details)){
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "Invalid Access Token.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			$strType = null;
-			$temp = array();
-			$groupsList =$this->getUserGroupTable()->fetchUserGroupList($user_details->user_id,$user_details->user_id,"","mine",(int) $limit,(int) $offset );
-			//$groupsList = $this->getGroupsTable()->generalGroupList((int) $limit,(int) $offset,$user_details->user_id);
-			foreach($groupsList as $list){
-				unset($list['user_group_id']);
-				unset($list['user_group_user_id']);
-				unset($list['user_group_group_id']);
-				unset($list['user_group_added_timestamp']);
-				unset($list['user_group_added_ip_address']);
-				unset($list['user_group_status']);
-				unset($list['user_group_is_owner']);
-				unset($list['user_group_role']);
-          
-				if (!empty($list['group_photo_photo']))
-					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
-				else
-					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].'/images/group-img_def.jpg';
-				$temp[]=$list;
+			$user_id = $user_details->user_id;
+			$city = (isset($post['city'])&&$post['city']!=null&&$post['city']!=''&&$post['city']!='undefined')?strip_tags(trim($post['city'])):'';
+			$country = (isset($post['country'])&&$post['country']!=null&&$post['country']!=''&&$post['country']!='undefined')?strip_tags(trim($post['country'])):'';	
+			$category = (isset($post['categories'])&&$post['categories']!=null&&$post['categories']!=''&&$post['categories']!='undefined')?$post['categories']:'';
+			$myfriends = (isset($post['myfriends'])&&$post['myfriends']!=null&&$post['myfriends']!=''&&$post['myfriends']!='undefined'&&$post['myfriends']==true)?strip_tags(trim($post['myfriends'])):'';
+			$offset = (isset($post['nparam'])&&$post['nparam']!=null&&$post['nparam']!=''&&$post['nparam']!='undefined')?trim($post['nparam']):0;
+			$limit = (isset($post['countparam'])&&$post['countparam']!=null&&$post['countparam']!=''&&$post['countparam']!='undefined')?trim($post['countparam']):30;
+			if (isset($limit) && !is_numeric($limit)) {
+ 				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid Count Field.";
+				echo json_encode($dataArr);
+				exit;		
 			}
-			$dataArr[0]['flag'] = "Success";
-			$dataArr[0]['usergroups']= $temp;
-			echo json_encode($dataArr);
-			exit;
+			if (isset($offset) && !is_numeric($offset)) {
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Please input a Valid N Field.";
+				echo json_encode($dataArr);
+				exit;
+			}
+			$arr_group_list = '';
+			$groups = $this->getUserGroupTable()->getMatchGroupsByUserTagsForRestApi($user_id,$city,$country,$myfriends,$category,(int) $limit,(int) $offset);
+			if(!empty($groups)){
+				foreach($groups as $list){
+					if (!empty($list['group_photo_photo']))
+					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
+					else
+					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].'/images/group-img_def.jpg';
+					$tag_category = $this->getGroupTagTable()->getAllGroupTagCategiry($list['group_id']);
+					$tags = $this->getGroupTagTable()->fetchAllGroupTags($list['group_id']);
+					$temptags = array();
+					foreach($tags as $tags_list){						 
+						$temptags[] = array('tag_id'=>$tags_list['tag_id'],
+											'tag_title'=>$tags_list['tag_title']);
+					}		
+					$tag_category_temp = array();
+					foreach($tag_category as $tag_category_list){
+						if (!empty($tag_category_list['tag_category_icon']))
+						$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
+						else
+						$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
+					
+						$tag_category_temp[] = array('tag_category_id'=>$tag_category_list['tag_category_id'],
+													'tag_category_title'=>$tag_category_list['tag_category_title'],
+													'tag_category_icon'=>$tag_category_list['tag_category_icon']
+												);
+					}					 
+					$arr_group_list[] = array(
+						'group_id' =>$list['group_id'],
+						'group_title' =>$list['group_title'],
+						'group_seo_title' =>$list['group_seo_title'],
+						'group_type' =>(empty($list['group_type']))?"":$list['group_type'],
+						'group_photo_photo' =>$list['group_photo_photo'],										 
+						'country_title' =>$list['country_title'],
+						'country_code' =>$list['country_code'],
+						'member_count' =>$list['member_count'],
+						'friend_count' =>$list['friend_count'],
+						'city' =>$list['city'],	
+						'tag_category_count' =>count($tag_category),
+						'tag_category' =>$tag_category_temp,
+						'tags' =>$temptags,
+						);
+				}
+				$dataArr[0]['flag'] = "Success";
+				$dataArr[0]['groups'] = $arr_group_list;
+				echo json_encode($dataArr);
+				exit;
+			}
+			else{
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "No Groups available.";
+				echo json_encode($dataArr);
+				exit;
+			}
 		}else{
 			$dataArr[0]['flag'] = "Failure";
 			$dataArr[0]['message'] = "Request Not Authorised.";
 			echo json_encode($dataArr);
 			exit;
 		}
+		return;
     }
 	public function groupdetailsAction(){
 		$request = $this->getRequest();
@@ -161,29 +195,22 @@ class GroupsController extends AbstractActionController
 				$temptags = array();
 				$tag_category_temp = array();
 				foreach($tags as $tags_list){
-					unset($tags_list['group_tag_id']);
-					unset($tags_list['group_tag_group_id']);
-					unset($tags_list['group_tag_tag_id']);
-					unset($tags_list['group_tag_added_timestamp']);
-					unset($tags_list['group_tag_added_ip_address']);
-					$temptags[] = $tags_list;
+					$temptags[] = array('tag_id'=>$tags_list['tag_id'],
+										'tag_title'=>$tags_list['tag_title']);					 
 				}
 				$tags = $temptags;
-				foreach($tag_category as $tag_category_list){
-					unset($tag_category_list['group_tag_id']);
-					unset($tag_category_list['group_tag_group_id']);
-					unset($tag_category_list['group_tag_tag_id']);
-					unset($tag_category_list['group_tag_added_timestamp']);
-					unset($tag_category_list['group_tag_added_ip_address']);
+				foreach($tag_category as $tag_category_list){					 
 
 					if (!empty($tag_category_list['tag_category_icon']))
 					$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
 					else
 					$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
-					$tag_category_temp[] = $tag_category_list;
+					$tag_category_temp[] = array('tag_category_id'=>$tag_category_list['tag_category_id'],
+												 'tag_category_title'=>$tag_category_list['tag_category_title'],
+												 'tag_category_icon'=>$tag_category_list['tag_category_icon']
+												);					 
 				}
-				$tag_category = $tag_category_temp;
-				
+				$tag_category = $tag_category_temp;				
 				$arr_group_list[] = array(
 					'group_id' =>$groupdetailslist->group_id,
 					'group_title' =>$groupdetailslist->group_title,
@@ -239,7 +266,8 @@ class GroupsController extends AbstractActionController
 				foreach($newsfeedsList as $list){
 					$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
 					$profileDetails = $this->getUserTable()->getProfileDetails($list['user_id']);
-					$userprofiledetails = array('user_id'=>$profileDetails->user_id,
+					$userprofiledetails = array();
+					$userprofiledetails[] = array('user_id'=>$profileDetails->user_id,
 								'user_given_name'=>$profileDetails->user_given_name,									 
 								'user_profile_name'=>$profileDetails->user_profile_name,
 								'user_email'=>$profileDetails->user_email,
@@ -288,7 +316,7 @@ class GroupsController extends AbstractActionController
 							}
 							$attending_users = $tempattendusers;
 						}
-						$activity_details = array(
+						$activity_details[] = array(
 												"group_activity_id" => $activity->group_activity_id,
 												"group_activity_title" => $activity->group_activity_title,
 												"group_activity_location" => $activity->group_activity_location,
@@ -306,12 +334,12 @@ class GroupsController extends AbstractActionController
 												"rsvp_count" =>($activity->rsvp_count)?$activity->rsvp_count:0,
 												"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
 												"is_going"=>$activity->is_going,
-												"attending_users" =>$attending_users,
-												"userprofiledetails" =>$userprofiledetails,
+												"attending_users" =>$attending_users,												 
 												);
 						$feeds[] = array('content' => $activity_details,
 										'type'=>$list['type'],
 										'time'=>$this->timeAgo($list['update_time']),
+										'postedby'=>$userprofiledetails,
 						); 							
 						break;
 						case "New Status":
@@ -324,7 +352,7 @@ class GroupsController extends AbstractActionController
 							if(!empty($like_details)&&isset($like_details['likes_counts'])){  
 								$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
 							}
-							$discussion_details = array(
+							$discussion_details[]= array(
 												"group_discussion_id" => $discussion->group_discussion_id,
 												"group_discussion_content" => $discussion->group_discussion_content,
 												"group_title" =>$list['group_title'],
@@ -333,12 +361,12 @@ class GroupsController extends AbstractActionController
 												"like_count"	=>$like_details['likes_counts'],
 												"is_liked"	=>$like_details['is_liked'],
 												"comment_counts"	=>$comment_details['comment_counts'],
-												"is_commented"	=>$comment_details['is_commented'],
-												"userprofiledetails" =>$userprofiledetails,
+												"is_commented"	=>$comment_details['is_commented'],												 
 												);
 							$feeds[] = array('content' => $discussion_details,
 											'type'=>$list['type'],
 											'time'=>$this->timeAgo($list['update_time']),
+											'postedby'=>$userprofiledetails,
 							); 
 						break;
 						case "New Media":
@@ -354,9 +382,14 @@ class GroupsController extends AbstractActionController
 							if(!empty($like_details)&&isset($like_details['likes_counts'])){  
 								$liked_users = $this->getLikeTable()->likedUsersWithoutLoggedOneWithFriendshipStatus($SystemTypeData->system_type_id,$list['event_id'],$user_id,2,0);
 							}
-							if (!empty($media->media_content))
-								$media->media_content = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
-							$media_details = array(
+							if (!empty($media->media_content)){
+								if($media->media_type == 'video'){
+									$media->media_content =	'http://img.youtube.com/vi/'.$video_id.'/0.jpg';
+								}else{
+									$media->media_content = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
+								}								
+							}								
+							$media_details[] = array(
 												"group_media_id" => $media->group_media_id,
 												"media_type" => $media->media_type,
 												"media_content" => $media->media_content,
@@ -368,12 +401,12 @@ class GroupsController extends AbstractActionController
 												"like_count"	=>$like_details['likes_counts'],
 												"is_liked"	=>$like_details['is_liked'],	
 												"comment_counts"	=>$comment_details['comment_counts'],
-												"is_commented"	=>$comment_details['is_commented'],
-												"userprofiledetails" =>$userprofiledetails,												
+												"is_commented"	=>$comment_details['is_commented'],												 										
 												);
 							$feeds[] = array('content' => $media_details,
 											'type'=>$list['type'],
 											'time'=>$this->timeAgo($list['update_time']),
+											'postedby'=>$userprofiledetails,
 							); 
 						break;
 					}
@@ -402,114 +435,8 @@ class GroupsController extends AbstractActionController
 			exit;
 		}
     }
-    public function exploregroupsAction(){
-    	$error = '';
-		$request   = $this->getRequest();
-		if ($request->isPost()){ 
-			$config = $this->getServiceLocator()->get('Config');
-			$post = $request->getPost();
-			$accToken = (isset($post['accesstoken'])&&$post['accesstoken']!=null&&$post['accesstoken']!=''&&$post['accesstoken']!='undefined')?strip_tags(trim($post['accesstoken'])):'';
-			if (empty($accToken)) {
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Request Not Authorised.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
-			if(empty($user_details)){
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Invalid Access Token.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			$user_id = $user_details->user_id;
-			$city = (isset($post['city'])&&$post['city']!=null&&$post['city']!=''&&$post['city']!='undefined')?strip_tags(trim($post['city'])):'';
-			$country = (isset($post['country'])&&$post['country']!=null&&$post['country']!=''&&$post['country']!='undefined')?strip_tags(trim($post['country'])):'';	
-			$category = (isset($post['categories'])&&$post['categories']!=null&&$post['categories']!=''&&$post['categories']!='undefined')?$post['categories']:'';
-			$myfriends = (isset($post['myfriends'])&&$post['myfriends']!=null&&$post['myfriends']!=''&&$post['myfriends']!='undefined'&&$post['myfriends']==true)?strip_tags(trim($post['myfriends'])):'';
-			$offset = (isset($post['nparam'])&&$post['nparam']!=null&&$post['nparam']!=''&&$post['nparam']!='undefined')?trim($post['nparam']):0;
-			$limit = (isset($post['countparam'])&&$post['countparam']!=null&&$post['countparam']!=''&&$post['countparam']!='undefined')?trim($post['countparam']):30;
-			if (isset($limit) && !is_numeric($limit)) {
- 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a Valid Count Field.";
-				echo json_encode($dataArr);
-				exit;		
-			}
-			if (isset($offset) && !is_numeric($offset)) {
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a Valid N Field.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			$arr_group_list = '';
-			$groups = $this->getUserGroupTable()->getmatchGroupsByuserTags($user_id,$city,$country,$myfriends,$category,(int) $limit,(int) $offset);
-			if(!empty($groups)){
-				foreach($groups as $list){
-					if (!empty($list['group_photo_photo']))
-					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/medium/'.$list['group_photo_photo'];
-					else
-					$list['group_photo_photo'] = $config['pathInfo']['absolute_img_path'].'/images/group-img_def.jpg';
-					$tag_category = $this->getGroupTagTable()->getAllGroupTagCategiry($list['group_id']);
-					$tags = $this->getGroupTagTable()->fetchAllGroupTags($list['group_id']);
-					foreach($tags as $tags_list){
-						unset($tags_list['group_tag_id']);
-						unset($tags_list['group_tag_group_id']);
-						unset($tags_list['group_tag_tag_id']);
-						unset($tags_list['group_tag_added_timestamp']);
-						unset($tags_list['group_tag_added_ip_address']);
-						$temptags[] = $tags_list;
-					}
-					$tags = $temptags;
-					foreach($tag_category as $tag_category_list){
-						unset($tag_category_list['group_tag_id']);
-						unset($tag_category_list['group_tag_group_id']);
-						unset($tag_category_list['group_tag_tag_id']);
-						unset($tag_category_list['group_tag_added_timestamp']);
-						unset($tag_category_list['group_tag_added_ip_address']);
-
-						if (!empty($tag_category_list['tag_category_icon']))
-						$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
-						else
-						$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
-						$tag_category_temp[] = $tag_category_list;
-					}
-					$tag_category = $tag_category_temp;
-					$arr_group_list[] = array(
-						'group_id' =>$list['group_id'],
-						'group_title' =>$list['group_title'],
-						'group_seo_title' =>$list['group_seo_title'],
-						'group_type' =>(empty($list['group_type']))?"":$list['group_type'],
-						'group_photo_photo' =>$list['group_photo_photo'],										 
-						'country_title' =>$list['country_title'],
-						'country_code' =>$list['country_code'],
-						'member_count' =>$list['member_count'],
-						'friend_count' =>$list['friend_count'],
-						'city' =>$list['city'],	
-						'tag_category_count' =>count($tag_category),
-						'tag_category' =>$tag_category,
-						'tags' =>$tags,
-						);
-				}
-				$dataArr[0]['flag'] = "Success";
-				$dataArr[0]['groups'] = $arr_group_list;
-				echo json_encode($dataArr);
-				exit;
-			}
-			else{
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "No Groups available.";
-				echo json_encode($dataArr);
-				exit;
-			}
-		}else{
-			$dataArr[0]['flag'] = "Failure";
-			$dataArr[0]['message'] = "Request Not Authorised.";
-			echo json_encode($dataArr);
-			exit;
-		}
-		return;
-    }
-    public function groupmembersAction(){
+	public function groupmembersAction(){
+		$arrMembers = array();
     	if($this->getRequest()->getMethod() == 'POST') {
 			$config = $this->getServiceLocator()->get('Config');
 			$postedValues = $this->getRequest()->getPost();
@@ -555,13 +482,15 @@ class GroupsController extends AbstractActionController
 				$dataArr[0]['message'] = "Invalid Access Token.";
 				echo json_encode($dataArr);
 				exit;
-			}
-			$error = "";
-			$tempmembers = array();
+			}			 
 			$group  = $this->getGroupsTable()->getPlanetinfo($group_id);
-			$error =(empty($group)||$group_id=='')?"Given group not exist in this system":$error;	
-			$members_list = $this->getUserGroupTable()->getMembers($group_id,$myinfo->user_id,$type,(int) $offset,(int) $limit);
-			
+			if(empty($group)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Given group not exist in this system.";
+				echo json_encode($dataArr);
+				exit;
+			}		 
+			$members_list = $this->getUserGroupTable()->getMembers($group_id,$myinfo->user_id,$type,(int) $offset,(int) $limit);			
 			if(!empty($members_list)){
 				foreach($members_list as $list){
 					$tag_category = $this->getUserTagTable()->getAllUserTagCategiry($list['user_id']);
@@ -590,17 +519,16 @@ class GroupsController extends AbstractActionController
 					}
 					if (count($tag_category)){
 						$tag_category_temp = array();
-						foreach($tag_category as $tag_category_list){
-							unset($tag_category_list['user_tag_id']);
-							unset($tag_category_list['user_tag_user_id']);
-							unset($tag_category_list['user_tag_tag_id']);
-							unset($tag_category_list['user_tag_added_timestamp']);
-							unset($tag_category_list['user_tag_added_ip_address']);
+						foreach($tag_category as $tag_category_list){					 
+
 							if (!empty($tag_category_list['tag_category_icon']))
 							$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].$config['image_folders']['tag_category'].$tag_category_list['tag_category_icon'];
 							else
 							$tag_category_list['tag_category_icon'] = $config['pathInfo']['absolute_img_path'].'/images/category-icon.png';
-							$tag_category_temp[] = $tag_category_list;
+							$tag_category_temp[] = array('tag_category_id'=>$tag_category_list['tag_category_id'],
+														 'tag_category_title'=>$tag_category_list['tag_category_title'],
+														 'tag_category_icon'=>$tag_category_list['tag_category_icon']
+														);					 
 						}
 						$tag_category = $tag_category_temp;
 					}
@@ -615,8 +543,8 @@ class GroupsController extends AbstractActionController
 									'profile_photo'=>$profile_photo,
 									'tag_count' =>count($tag_category),
 									'tag_category' =>$tag_category,
-									'access_user_created_group_count'=>$list['group_count'],
-									'group_user_created_group_count'=>$created_group_count,
+									'joined_group_count'=>$list['group_count'],
+									'created_group_count'=>$created_group_count,
 									'is_admin'=>($type == 'pending')?0:$list['is_admin'],
 									'user_group_is_owner'=>($type == 'pending')?0:$list['user_group_is_owner'],
 									'user_group_role'=>($type == 'pending')?'':$list['user_group_role'],
@@ -624,9 +552,7 @@ class GroupsController extends AbstractActionController
 									);
 				}
 			}
-			$dataArr[0]['flag'] = (empty($error))?'Success':'Failure';
-			if ($error) $dataArr[0]['message'] = $error;
-
+			$dataArr[0]['flag'] =  'Success';
 			$dataArr[0]['groupmembers'] = $arrMembers;		
 			echo json_encode($dataArr);
 			exit;
@@ -714,7 +640,7 @@ class GroupsController extends AbstractActionController
 			}
 		}
 	}
-	public function get_youtube_id_from_url($url){
+	public function  get_youtube_id_from_url($url){
 		if (stristr($url,'youtu.be/'))
 			{preg_match('/(https:|http:|)(\/\/www\.|\/\/|)(.*?)\/(.{11})/i', $url, $final_ID); return $final_ID[4]; }
 		else 
@@ -764,7 +690,7 @@ class GroupsController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 		return  $this->activityRsvpTable = (!$this->activityRsvpTable)?$sm->get('Activity\Model\ActivityRsvpTable'):$this->activityRsvpTable;
     }
-    public function getUserTagTable(){
+	public function getUserTagTable(){
 		$sm = $this->getServiceLocator();
 		return  $this->userTagTable = (!$this->userTagTable)?$sm->get('Tag\Model\UserTagTable'):$this->userTagTable;    
 	}

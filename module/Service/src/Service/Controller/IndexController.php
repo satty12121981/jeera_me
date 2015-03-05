@@ -1,4 +1,12 @@
 <?php
+/**
+ * Zend Framework (http://framework.zend.com/)
+ *
+ * @link      http://github.com/zendframework/ZendSkeletonApplication for the canonical source repository
+ * @copyright Copyright (c) 2005-2014 Zend Technologies USA Inc. (http://www.zend.com)
+ * @license   http://framework.zend.com/license/new-bsd New BSD License
+ */
+
 namespace Service\Controller;
 
 use Zend\Mvc\Controller\AbstractActionController;
@@ -23,6 +31,8 @@ use User\Model\Recoveryemails;
 use User\Form\Login;       
 use User\Form\LoginFilter; 
 use User\Form\ResetPassword;
+use Facebook\Controller\Facebook;
+use Facebook\Controller\FacebookApiException;
 
 class IndexController extends AbstractActionController
 {
@@ -31,22 +41,19 @@ class IndexController extends AbstractActionController
 	protected $userProfileTable;
 	protected $userFriendTable;
 	protected $userGroupTable;
-	protected $groupTable;
 	protected $userTagTable;
 	protected $RecoveryemailsTable;
-	protected $activityTable;
-	protected $likeTable;
-	protected $activityRsvpTable;
-    protected $commentTable;
-    protected $groupMediaTable;
-    protected $discussionTable;
-    
 	protected $WEB_STAMPTIME;
-	
-	public function init(){
-        $this->flagSuccess = "Success";
+	public function  __construct() {
+
+        $this->facebook = new Facebook(array(
+            'appId'  => '739393236113308',
+            'secret' => '9da375419c2da6d66b7237673b285ff0'
+        ));
+		  $this->flagSuccess = "Success";
 		$this->flagError = "Failure";
-	}
+    }
+	 
 	
 	public function registerAction(){
 		$request = $this->getRequest();
@@ -86,12 +93,26 @@ class IndexController extends AbstractActionController
 				$dataArr[0]['message'] = "Country is required.";
 				echo json_encode($dataArr);
 				exit;
+			}else{  
+				if(!is_numeric($postedValues['country_id'])){
+					$dataArr[0]['flag'] = "Failure";
+					$dataArr[0]['message'] = "Enter a valid country id.";
+					echo json_encode($dataArr);
+					exit;
+				}
 			}
 			if ((!isset($postedValues['city_id'])) || (trim($postedValues['city_id']) == '')) {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "City is required.";
 				echo json_encode($dataArr);
 				exit;
+			}else{
+				if(!is_numeric($postedValues['city_id'])){
+					$dataArr[0]['flag'] = "Failure";
+					$dataArr[0]['message'] = "Enter a valid city id.";
+					echo json_encode($dataArr);
+					exit;
+				}
 			}
 			$password = strip_tags($postedValues['password']);
 			$password = trim($password);
@@ -151,86 +172,107 @@ class IndexController extends AbstractActionController
 
     public function fbregisterAction(){
 		$request = $this->getRequest();
+		$UserData = array();
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
 			$str = $this->getRequest()->getContent();
 			$user_details = array();
-		
-			if ( !empty($postedValues['email']) && filter_var($postedValues['email'], FILTER_VALIDATE_EMAIL)) {
-				$user_details = $this->getUserTable()->getUserFromEmail(strip_tags(trim($postedValues['email'])));
+			$fbid =(isset($postedValues['fbid']))?trim($postedValues['fbid']):'';
+			$accesstoken = (isset($postedValues['accesstoken']))?trim($postedValues['accesstoken']):'';
+			if(empty($fbid)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Fb id required";
+				echo json_encode($dataArr);
+				exit;
 			}
-			else if( !empty($postedValues['fbid']) ) {
-				$user_details = $this->getUserTable()->getUserByFbid(strip_tags(trim($postedValues['fbid'])));
+			if(empty($accesstoken)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Access token required";
+				echo json_encode($dataArr);
+				exit;
 			}
-
-			if ($postedValues['fbid'] && $postedValues['accesstoken']){
-				$fbid = trim($postedValues['fbid']);
-				$accesstoken = trim($postedValues['accesstoken']);
-			}
-
-			if (!empty($fbid) && !empty($accesstoken)) {
-				$bcrypt = new Bcrypt();
-
-				$data['user_fbid'] = strip_tags($fbid);
-
-				$uniqueToken = $postedValues['fbid']."#".uniqid();
-				$encodedUniqToken = base64_encode($uniqueToken);
-				$data['user_accessToken'] = $encodedUniqToken;
-				
-				if ($postedValues['email']) {
-					$email = strip_tags($postedValues['email']);
-					$email = trim($email);
-					$data['user_email'] = $email;
-				}
-				if ($postedValues['name']) {
-					$name = strip_tags($postedValues['name']);
-					$name = trim($name);
-					$data['user_given_name'] = $name;
-				}
-
-				$data['user_profile_name'] = $this->make_url_friendly($postedValues['name']);
-				$data['user_status'] = "live";
-			
-				if (isset($user_details) && empty($user_details->user_id)){
-					$data['user_register_type'] = "facebook";
-					$user = new User();
-					$user->exchangeArray($data);
-					$insertedUserId = $this->getUserTable()->saveUser($user);
-				} else {
-					unset($data['user_fbid']);
-					$data['user_register_type'] = "site";
-					$this->getUserTable()->updateUser($data,$user_details->user_id);
-					$dataArr[0]['flag'] = "Success";
-					$dataArr[0]['message'] = "Login Successful.";
-					$dataArr[0]['accesstoken'] = $encodedUniqToken;
+			if (!empty($fbid)&&!empty($accesstoken)) {
+				$user_profile = array();
+				try{
+					$this->facebook->setAccessToken($accesstoken);
+					$user_profile = $this->facebook->api('/me');
+				} catch(Exception $e){
+					 $dataArr[0]['flag'] = "Failure";
+					$dataArr[0]['message'] = "Invalid Access Token";
 					echo json_encode($dataArr);
 					exit;
 				}
-
-				if($insertedUserId) {
-					$profile_data['user_profile_user_id'] = $insertedUserId;
-					$profile_data['user_profile_status'] = "available";
-					$userProfile = new UserProfile();
-					$userProfile->exchangeArray($profile_data);
-					$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfileApi($userProfile);					 
-					$dataArr[0]['flag'] = "Success";
-					$dataArr[0]['message'] = "Login Successful.";
-					$dataArr[0]['accesstoken'] = $encodedUniqToken;
-					echo json_encode($dataArr);
-					exit;
-				} else {
+				if(!empty($user_profile)){
+					if($fbid == $user_profile['id']){
+						$UserData = $this->getUserTable()->getUserByFbid(strip_tags(trim($user_profile['id'])));
+						if(!empty($UserData)&&$UserData->user_id){
+							$user_details = $UserData;
+						}elseif(!empty($user_profile['email']) && filter_var($user_profile['email'], FILTER_VALIDATE_EMAIL)){
+							$user_details = $this->getUserTable()->getUserFromEmail(strip_tags(trim($user_profile['email'])));
+						}else{
+							$user_details = $UserData;
+						}
+						if(!empty($user_details)&&!empty($user_details->user_id)){
+							$insertedUserId = $user_details->user_id;
+							if($user_details->user_status == 'not activated'){
+								$data = array('user_status'=>"live");
+								$this->getUserTable()->updateUser($data,$user_details->user_id);	
+							}
+							if($user_details->user_fbid == ''){
+								$data = array('user_fbid'=>$user_profile['id']);
+								$this->getUserTable()->updateUser($data,$user_details->user_id);	
+							}
+						}else{
+							$user_data['user_given_name'] =  (isset($user_profile['name'])&&!empty($user_profile['name']))?$user_profile['name']:'unknown';					 
+							$user_data['user_profile_name'] = $this->make_url_friendly($user_profile['name']);
+							$user_data['user_status'] = "live";
+							$user_data['user_email'] = (isset($user_profile['email'])&& filter_var($user_profile['email'], FILTER_VALIDATE_EMAIL))?$user_profile['email']:NULL;					 
+							$user_data['user_register_type'] = 'facebook';
+							$user_data['user_fbid'] =$user_profile['fbid']; 
+							$user = new User();
+							$user->exchangeArray($user_data);
+							$insertedUserId = $this->getUserTable()->saveUser($user);
+							if($insertedUserId){
+								$user_profile_data['user_profile_user_id'] = $insertedUserId;
+								$user_profile_data['user_profile_emailme_id'] = '';
+								$user_profile_data['user_profile_notifyme_id'] = '';
+								$userProfile = new UserProfile();
+								$userProfile->exchangeArray($user_profile_data);
+								$insertedUserProfileId = $this->getUserProfileTable()->saveUserProfile($userProfile);
+							}
+						}
+						if($insertedUserId) {
+							$uniqueToken = $postedValues['fbid']."#".uniqid();
+							$encodedUniqToken = base64_encode($uniqueToken);
+							$access_data['user_accessToken'] = $encodedUniqToken;		 
+							$this->getUserTable()->updateUser($access_data,$insertedUserId);					
+							$dataArr = $this->getAllUserRelatedDetails($insertedUserId,$access_data['user_accessToken']);
+							echo json_encode($dataArr);
+							exit;
+						} else {
+							$dataArr[0]['flag'] = "Failure";
+							$dataArr[0]['message'] = "Some Error Occurred. Please Try Again.";
+							echo json_encode($dataArr);
+							exit;
+						}
+					}else{
+						$dataArr[0]['flag'] = "Failure";
+						$dataArr[0]['message'] = "Fb id mismatch";
+						echo json_encode($dataArr);
+						exit;
+					}
+				}else{
 					$dataArr[0]['flag'] = "Failure";
-					$dataArr[0]['message'] = "Some Error Occurred. Please Try Again.";
+					$dataArr[0]['message'] = "Invalid access tocken";
 					echo json_encode($dataArr);
 					exit;
-				}
-			} else {
+				}			
+			}else {
 				$dataArr[0]['flag'] = "Failure";
 				$dataArr[0]['message'] = "No Input Parameters.";
 				echo json_encode($dataArr);
 				exit;
-			}
-			
+			}		
 		} else {
 			$dataArr[0]['flag'] = "Failure";
 			$dataArr[0]['message'] = "Request Not Authorised.";
@@ -319,256 +361,6 @@ class IndexController extends AbstractActionController
 		$data_array = compact('set_timestamp');
 		$this->getUserTable()->updateUser($data_array,$user_id);
 		return $set_secretcode;
-	}
-
-	public function userfulldetailsAction(){
-		$request = $this->getRequest();
-		if($this->getRequest()->getMethod() == 'POST') {
-
-			$config = $this->getServiceLocator()->get('Config');
-			$postedValues = $this->getRequest()->getPost();
-
-			$userID = trim($postedValues['userID']);
-			$accToken = strip_tags(trim($postedValues['accesstoken']));
-
-			if ((!isset($accToken)) || (trim($accToken) == '')) {
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Request Not Authorised.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			if ((!isset($userID)) || (trim($userID) == '')) {
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Request Not Authorised.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			if (isset($userID) && !is_numeric($userID)) {
- 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a Valid userID.";
-				echo json_encode($dataArr);
-			}
-
-			$postedValues = $this->getRequest()->getPost();
-			$user_details = $this->getUserTable()->getUser($userID);
-			$dataArr = $this->getAllUserRelatedDetails($user_details->user_id,$user_details->user_accessToken);
-			echo json_encode($dataArr);
-			exit;
-		}else{
-			$dataArr[0]['flag'] = "Failure";
-			$dataArr[0]['message'] = "Request Not Authorised.";
-			echo json_encode($dataArr);
-			exit;
-		}
-	}
-
-	public function usergroupfeedsAction(){
-		$request = $this->getRequest();
-		if($this->getRequest()->getMethod() == 'POST') {
-			$config = $this->getServiceLocator()->get('Config');
-			$postedValues = $this->getRequest()->getPost();
-
-			$type = trim($postedValues['type']);
-			$offset = trim($postedValues['nparam']);
-			$limit = trim($postedValues['countparam']);
-			
-			$accToken = strip_tags(trim($postedValues['accesstoken']));
-
-			if ((!isset($accToken)) || (trim($accToken) == '')) {
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Request Not Authorised.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			
-			if (isset($limit) && !is_numeric($limit)) {
- 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a Valid Count Field.";
-				echo json_encode($dataArr);
-				exit;		
-			}
-			if (isset($offset) && !is_numeric($offset)) {
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Please input a Valid N Field.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			$user_details = $this->getUserTable()->getUserByAccessToken($accToken);
-			if(empty($user_details)){
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "Invalid Access Token.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			$user_id = $user_details->user_id;
-			
-			$newsfeedsList = $this->getGroupsTable()->getMyFeeds($user_id,$type,(int) $limit,(int) $offset);				 
-			if(!empty($newsfeedsList)){
-				foreach($newsfeedsList as $list){
-					$profile_photo = $this->manipulateProfilePic($user_id, $list['profile_photo'], $list['user_fbid']);
-					$profileDetails = $this->getUserTable()->getProfileDetails($list['user_id']);
-					$userprofiledetails = array('user_id'=>$profileDetails->user_id,
-								'user_given_name'=>$profileDetails->user_given_name,									 
-								'user_profile_name'=>$profileDetails->user_profile_name,
-								'user_email'=>$profileDetails->user_email,
-								'user_status'=>$profileDetails->user_status,
-								'user_fbid'=>$profileDetails->user_fbid,
-								'user_profile_about_me'=>$profileDetails->user_profile_about_me,
-								'user_profile_current_location'=>$profileDetails->user_profile_current_location,
-								'user_profile_phone'=>$profileDetails->user_profile_phone,
-								'country_title'=>$profileDetails->country_title,
-								'country_code'=>$profileDetails->country_code,
-								'country_id'=>$profileDetails->country_id,
-								'city_name'=>$profileDetails->city_name,
-								'city_id'=>$profileDetails->city_id,
-								'profile_photo'=>$profile_photo,
-								);
-					switch($list['type']){
-						case "New Activity":
-						$activity_details = array();
-						$activity = $this->getActivityTable()->getActivityForFeed($list['event_id'],$user_id);
-						$SystemTypeData   = $this->getGroupsTable()->fetchSystemType("Activity");
-						$like_details     = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
-						$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
-						$str_liked_users  = '';
-						
-						$rsvp_count = $this->getActivityRsvpTable()->getCountOfAllRSVPuser($activity->group_activity_id)->rsvp_count;
-						$attending_users = array();
-						if($rsvp_count>0){
-							$attending_users = $this->getActivityRsvpTable()->getJoinMembers($activity->group_activity_id,3,0);
-						}
-						if (count($attending_users)){
-							foreach ($attending_users as $attendlist) {
-								unset($attendlist['group_activity_rsvp_id']);
-								unset($attendlist['group_activity_rsvp_user_id']);
-								unset($attendlist['group_activity_rsvp_activity_id']);
-								unset($attendlist['group_activity_rsvp_added_timestamp']);
-								unset($attendlist['group_activity_rsvp_added_ip_address']);
-								unset($attendlist['group_activity_rsvp_group_id']);
-
-								$attendlist['profile_photo'] = $this->manipulateProfilePic($attendlist['user_id'], $attendlist['profile_photo'], $attendlist['user_fbid']);
-          				
-								$tempattendusers[]=$attendlist;
-							}
-							$attending_users = $tempattendusers;
-						}
-						$activity_details = array(
-												"group_activity_id" => $activity->group_activity_id,
-												"group_activity_title" => $activity->group_activity_title,
-												"group_activity_location" => $activity->group_activity_location,
-												"group_activity_location_lat" => $activity->group_activity_location_lat,
-												"group_activity_location_lng" => $activity->group_activity_location_lng,
-												"group_activity_content" => $activity->group_activity_content,
-												"group_activity_start_timestamp" => date("M d,Y H:s a",strtotime($activity->group_activity_start_timestamp)),												 
-												"group_title" =>$list['group_title'],
-												"group_seo_title" =>$list['group_seo_title'],
-												"group_id" =>$list['group_id'],	
-												"like_count"	=>$like_details['likes_counts'],
-												"is_liked"	=>$like_details['is_liked'],
-												"comment_counts"	=>$comment_details['comment_counts'],
-												"is_commented"	=>$comment_details['is_commented'],
-												"rsvp_count" =>($activity->rsvp_count)?$activity->rsvp_count:0,
-												"rsvp_friend_count" =>($activity->friend_count)?$activity->friend_count:0,
-												"is_going"=>$activity->is_going,
-												"attending_users" =>$attending_users,
-												"userprofiledetails" =>$userprofiledetails,
-												);
-						$feeds[] = array('content' => $activity_details,
-										'type'=>$list['type'],
-										'time'=>$this->timeAgo($list['update_time']),
-						); 							
-						break;
-						case "New Status":
-							$discussion_details = array();
-							$discussion = $this->getDiscussionTable()->getDiscussionForFeed($list['event_id']);
-							$SystemTypeData = $this->getGroupsTable()->fetchSystemType("Discussion");
-							$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
-							$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
-							$str_liked_users = '';
-							
-							$discussion_details = array(
-												"group_discussion_id" => $discussion->group_discussion_id,
-												"group_discussion_content" => $discussion->group_discussion_content,
-												"group_title" =>$list['group_title'],
-												"group_seo_title" =>$list['group_seo_title'],
-												"group_id" =>$list['group_id'],												
-												"like_count"	=>$like_details['likes_counts'],
-												"is_liked"	=>$like_details['is_liked'],
-												"comment_counts"	=>$comment_details['comment_counts'],
-												"is_commented"	=>$comment_details['is_commented'],
-												"userprofiledetails" =>$userprofiledetails,
-												);
-							$feeds[] = array('content' => $discussion_details,
-											'type'=>$list['type'],
-											'time'=>$this->timeAgo($list['update_time']),
-							); 
-						break;
-						case "New Media":
-							$media_details = array();
-							$media = $this->getGroupMediaTable()->getMediaForFeed($list['event_id']);
-							$video_id  = '';
-							if($media->media_type == 'video')
-							$video_id  = $this->get_youtube_id_from_url($media->media_content);
-							$SystemTypeData = $this->getGroupsTable()->fetchSystemType("Media");
-							$like_details  = $this->getLikeTable()->fetchLikesCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id);
-							$comment_details  = $this->getCommentTable()->fetchCommentCountByReference($SystemTypeData->system_type_id,$list['event_id'],$user_id); 
-							$str_liked_users = '';
-							
-							if (!empty($media->media_content))
-								$media->media_content = $config['pathInfo']['absolute_img_path'].$config['image_folders']['group'].$list['group_id'].'/media/medium/'.$media->media_content;
-								$media_details = array(
-												"group_media_id" => $media->group_media_id,
-												"media_type" => $media->media_type,
-												"media_content" => $media->media_content,
-												"media_caption" => $media->media_caption,
-												"video_id" => $video_id,
-												"group_title" =>$list['group_title'],
-												"group_seo_title" =>$list['group_seo_title'],	
-												"group_id" =>$list['group_id'],													
-												"like_count"	=>$like_details['likes_counts'],
-												"is_liked"	=>$like_details['is_liked'],	
-												"comment_counts"	=>$comment_details['comment_counts'],
-												"is_commented"	=>$comment_details['is_commented'],
-												"userprofiledetails" =>$userprofiledetails,												
-												);
-								$feeds[] = array('content' => $media_details,
-											'type'=>$list['type'],
-											'time'=>$this->timeAgo($list['update_time']),
-								); 
-						break;
-					}
-				}
-				$dataArr[0]['flag'] = "Success";
-				$dataArr[0]['usergroupposts'] = $feeds;
-				
-				echo json_encode($dataArr);
-				exit; 
-			}else{
-				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "No details available.";
-				echo json_encode($dataArr);
-				exit;
-			}
-			
-		}else{
-			$dataArr[0]['flag'] = "Failure";
-			$dataArr[0]['message'] = "Request Not Authorised.";
-			echo json_encode($dataArr);
-			exit;
-		}
-	}
-
-	public function manipulateProfilePic($user_id, $profile_photo = null, $fb_id = null){
-    	$config = $this->getServiceLocator()->get('Config');
-		$return_photo = null;
-		if (!empty($profile_photo))
-			$return_photo = $config['pathInfo']['absolute_img_path'].$config['image_folders']['profile_path'].$user_id.'/'.$profile_photo;
-		else if(isset($fb_id) && !empty($fb_id))
-			$return_photo = 'http://graph.facebook.com/'.$fb_id.'/picture?type=normal';
-		else
-			$return_photo = $config['pathInfo']['absolute_img_path'].'/images/noimg.jpg';
-		return $return_photo;
-
 	}
 		
 	public function loginaccessAction(){
@@ -671,90 +463,34 @@ class IndexController extends AbstractActionController
         $set_timestamp = date("Y-m-d H:i", $futureDate);
         return $set_timestamp;
     }
-
-    public function timeAgo($time_ago){ //echo $time_ago;die();
-		$time_ago = strtotime($time_ago);
-		$cur_time   = time();
-		$time_elapsed   = $cur_time - $time_ago;
-		$seconds    = $time_elapsed ;
-		$minutes    = round($time_elapsed / 60 );
-		$hours      = round($time_elapsed / 3600);
-		$days       = round($time_elapsed / 86400 );
-		$weeks      = round($time_elapsed / 604800);
-		$months     = round($time_elapsed / 2600640 );
-		$years      = round($time_elapsed / 31207680 );
-		// Seconds
-		if($seconds <= 60){
-			return "just now";
-		}
-		//Minutes
-		else if($minutes <=60){
-			if($minutes==1){
-				return "one minute ago";
-			}
-			else{
-				return "$minutes minutes ago";
-			}
-		}
-		//Hours
-		else if($hours <=24){
-			if($hours==1){
-				return "an hour ago";
-			}else{
-				return "$hours hrs ago";
-			}
-		}
-		//Days
-		else if($days <= 7){
-			if($days==1){
-				return "yesterday";
-			}else{
-				return "$days days ago";
-			}
-		}
-		//Weeks
-		else if($weeks <= 4.3){
-			if($weeks==1){
-				return "a week ago";
-			}else{
-				return "$weeks weeks ago";
-			}
-		}
-		//Months
-		else if($months <=12){
-			if($months==1){
-				return "a month ago";
-			}else{
-				return "$months months ago";
-			}
-		}
-		//Years
-		else{
-			if($years==1){
-				return "one year ago";
-			}else{
-				return "$years years ago";
-			}
-		}
-	}
 		
 	public function logoutAction(){
 		$request = $this->getRequest();
 		if($this->getRequest()->getMethod() == 'POST') {
 			$postedValues = $this->getRequest()->getPost();
-			if ((!isset($postedValues['userId'])) || ($postedValues['userId'] == '')) {
+			if ((!isset($postedValues['accesstoken'])) || ($postedValues['accesstoken'] == '')) {
 				$dataArr[0]['flag'] = "Failure";
-				$dataArr[0]['message'] = "User-Id is required.";
+				$dataArr[0]['message'] = "Accesstoken is required.";
 				echo json_encode($dataArr);
 				exit;
 			}
-			$auth = new AuthenticationService();
-			$auth->clearIdentity();
-			unset($_SESSION);
-			$dataArr[0]['flag'] = "Success";
-			$dataArr[0]['message'] = "you have been logged out successfully.";
-			echo json_encode($dataArr);
-			exit;
+			$user_details = $this->getUserTable()->getUserByAccessToken($postedValues['accesstoken']);
+			if (empty($user_details)){
+				$dataArr[0]['flag'] = "Failure";
+				$dataArr[0]['message'] = "Invalid Access Token.";
+				echo json_encode($dataArr);
+				exit;
+			}else{
+				$data['user_accessToken'] = '';				 
+				$this->getUserTable()->updateUser($data,$user_details->user_id);
+				$auth = new AuthenticationService();
+				$auth->clearIdentity();
+				unset($_SESSION);
+				$dataArr[0]['flag'] = "Success";
+				$dataArr[0]['message'] = "you have been logged out successfully.";
+				echo json_encode($dataArr);
+				exit;
+			}			
 		} else {
 			$dataArr[0]['flag'] = "Failure";
 			$dataArr[0]['message'] = "Request not authorised.";
@@ -869,7 +605,7 @@ class IndexController extends AbstractActionController
 		return true;
 	}
 
-	public function getAllUserRelatedDetails($user_id, $set_secretcode){
+	public function getAllUserRelatedDetails($user_id, $set_secretcode){ 
 		$config = $this->getServiceLocator()->get('Config');
 		$swapusertags = array();
 		$profileDetails = array();
@@ -1015,11 +751,6 @@ class IndexController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 		return  $this->userFriendTable = (!$this->userFriendTable)?$sm->get('User\Model\UserFriendTable'):$this->userFriendTable;    
 	}
-	
-	public function getGroupsTable(){
-		$sm = $this->getServiceLocator();
-		return  $this->groupTable = (!$this->groupTable)?$sm->get('Groups\Model\GroupsTable'):$this->groupTable;    
-	}
 
 	public function getUserGroupTable(){
 		$sm = $this->getServiceLocator();
@@ -1035,31 +766,5 @@ class IndexController extends AbstractActionController
 		$sm = $this->getServiceLocator();
 		return $this->RecoveryemailsTable =(!$this->RecoveryemailsTable)?$sm->get('User\Model\RecoveryemailsTable'):$this->RecoveryemailsTable;
 	}
-	public function getActivityTable(){
-		$sm = $this->getServiceLocator();
-		return  $this->activityTable = (!$this->activityTable)?$sm->get('Activity\Model\ActivityTable'):$this->activityTable;    
-    }
-	public function getDiscussionTable(){
-		$sm = $this->getServiceLocator();
-		return  $this->discussionTable = (!$this->discussionTable)?$sm->get('Discussion\Model\DiscussionTable'):$this->discussionTable;    
-    }
-	public function getGroupMediaTable(){
-		$sm = $this->getServiceLocator();
-		return  $this->groupMediaTable = (!$this->groupMediaTable)?$sm->get('Groups\Model\GroupMediaTable'):$this->groupMediaTable;    
-    }
-	public function getLikeTable(){
-		$sm = $this->getServiceLocator();
-		return  $this->likeTable = (!$this->likeTable)?$sm->get('Like\Model\LikeTable'):$this->likeTable; 
-	}
-	public function getCommentTable(){
-		$sm = $this->getServiceLocator();
-		return  $this->commentTable = (!$this->commentTable)?$sm->get('Comment\Model\CommentTable'):$this->commentTable;   
-	}
-	public function getActivityRsvpTable(){
-		$sm = $this->getServiceLocator();
-		return  $this->activityRsvpTable = (!$this->activityRsvpTable)?$sm->get('Activity\Model\ActivityRsvpTable'):$this->activityRsvpTable;
-    }
-
-
 	
 }
